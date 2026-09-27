@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<ruleset name="resvg">
+    <description>PHP standard for the resvg extension: PSR-12 with two documented exceptions.</description>
+
+    <rule ref="PSR12">
+        <!-- The extension stub declares the whole public API in one file by design;
+             one-class-per-file targets runtime classes. -->
+        <exclude name="PSR1.Classes.ClassDeclaration.MultipleClasses"/>
+        <!-- Tools and test libraries are executable diagnostics: defining helper
+             symbols and executing the diagnostic in one file is their design. -->
+        <exclude name="PSR1.Files.SideEffects"/>
+    </rule>
+
+    <arg name="extensions" value="php"/>
+
+    <file>resvg.stub.php</file>
+    <file>examples</file>
+    <file>tools</file>
+    <file>tests</file>
+</ruleset>

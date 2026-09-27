@@ -1,0 +1,17 @@
+{
+  "name": "resvg-php/quality-tools",
+  "description": "Development quality tooling for the resvg extension",
+  "license": "MIT",
+  "require-dev": {
+    "phpstan/phpstan": "^2.1",
+    "squizlabs/php_codesniffer": "^3.13"
+  },
+  "config": {
+    "allow-plugins": {},
+    "sort-packages": true
+  },
+  "scripts": {
+    "lint:php": "phpcs",
+    "analyse": "phpstan analyse"
+  }
+}

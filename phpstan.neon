@@ -1,0 +1,9 @@
+parameters:
+    level: 7
+    paths:
+        - examples
+        - tests
+        - tools
+    scanFiles:
+        - resvg.stub.php
+    tmpDir: build/phpstan

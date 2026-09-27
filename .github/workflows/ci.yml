@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: '8.3'
+          tools: none
+          coverage: none
+
+      - name: Install lint tools
+        run: sudo apt-get update && sudo apt-get install -y clang-format-14 shellcheck
+
+      - name: Run verified actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=1.7.12
+          archive="$RUNNER_TEMP/actionlint_${version}_linux_amd64.tar.gz"
+          sha256=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+          curl -fsSL --retry 3 -o "$archive" "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz"
+          printf '%s  %s\n' "$sha256" "$archive" | sha256sum -c -
+          tar xzf "$archive" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/actionlint" -color
+
+      - name: Install PHP quality dependencies
+        env:
+          COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ github.token }}"}}'
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run ShellCheck, PHP syntax, style, and static analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          find tools -maxdepth 1 -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
+          find tests examples tools -maxdepth 1 -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
+          php -l resvg.stub.php
+          vendor/bin/phpcs
+          vendor/bin/phpstan analyse --memory-limit=512M
+          clang-format-14 --dry-run --Werror resvg.c resvg_renderer.c php_resvg.h resvg_internal.h resvg_arginfo.h
+
+      - name: Run Rust static gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup component add rustfmt clippy
+          cargo fmt --manifest-path native/Cargo.toml -- --check
+          cargo clippy --manifest-path native/Cargo.toml -- -D warnings
+
+  build:
+    name: Build and gate PHP ${{ matrix.php }}
+    needs: [quality]
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4', '8.5']
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y curl binutils
+
+      - name: Build the extension and run the fidelity gate
+        run: PHP_VERSION=${{ matrix.php }} tools/build.sh ${{ matrix.php }}
+
+      - name: Run the test suite
+        run: php tools/test-phpt.php build/resvg-php${{ matrix.php }}.so
+
+      - name: Run the examples
+        run: |
+          php -n -d extension=build/resvg-php${{ matrix.php }}.so examples/basic-render.php
+          php -n -d extension=build/resvg-php${{ matrix.php }}.so examples/fonts-and-batch.php
+
+      - name: Record artifact provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact=build/resvg-php${{ matrix.php }}.so
+          sha256="$(sha256sum "$artifact" | awk '{print $1}')"
+          api="$(php-config${{ matrix.php }} --phpapi)"
+          printf 'commit=%s\nrun_id=%s\nphp=%s\nphp_api=%s\nsha256=%s\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_ID" "${{ matrix.php }}" "$api" "$sha256" \
+            > "build/resvg-php${{ matrix.php }}.provenance"
+
+      - name: Upload tested artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: resvg-tested-php${{ matrix.php }}
+          path: |
+            build/resvg-php${{ matrix.php }}.so
+            build/resvg-php${{ matrix.php }}.provenance
+          if-no-files-found: error
+          retention-days: 3
