@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
 
       - name: Set up PHP
         uses: shivammathur/setup-php@2.37.2
@@ -24,6 +24,7 @@ jobs:
           php-version: '8.3'
           tools: none
           coverage: none
+          extensions: pcntl
 
       - name: Install lint tools
         run: sudo apt-get update && sudo apt-get install -y clang-format-14 shellcheck
@@ -78,7 +79,7 @@ jobs:
         php: ['8.3', '8.4', '8.5']
     steps:
       - name: Check out source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
 
       - name: Set up PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@2.37.2
@@ -86,6 +87,7 @@ jobs:
           php-version: ${{ matrix.php }}
           tools: none
           coverage: none
+          extensions: pcntl
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@1.98.1
@@ -116,7 +118,7 @@ jobs:
             > "build/resvg-php${{ matrix.php }}.provenance"
 
       - name: Upload tested artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: resvg-tested-php${{ matrix.php }}
           path: |
