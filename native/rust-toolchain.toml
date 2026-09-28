@@ -1,7 +1,9 @@
 # Pinned toolchain for the whole native/ build. resvg 0.48.x is edition 2024,
-# which requires Rust >= 1.85; this file makes every environment use the same
-# toolchain instead of whichever rustup default happens to be installed.
+# which requires Rust >= 1.85; the exact validated version is pinned so every
+# environment resolves identically instead of floating with whatever the host's
+# "stable" happens to be at build time. Bump this file and re-run the battery
+# together with any upstream bump.
 [toolchain]
-channel = "stable"
+channel = "1.98.1"
 components = ["rustfmt", "clippy"]
 profile = "minimal"

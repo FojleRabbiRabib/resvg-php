@@ -4,6 +4,9 @@
  * Render text with an explicit font, and show that a reusable renderer is the
  * intended shape: construct once, render many.
  *
+ * Copyright 2026 Fojle Rabbi (Rabib)
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Usage: php -n -d extension=build/resvg-php8.3.so examples/fonts-and-batch.php
  */
 
@@ -32,6 +35,9 @@ foreach ($labels as $label) {
     );
 
     $png = $renderer->render($svg);
+    if (!is_string($png)) {
+        throw new RuntimeException('Render returned bool, but no "output" sink was given.');
+    }
     if (strncmp($png, "\x89PNG\r\n\x1a\n", 8) !== 0) {
         throw new RuntimeException("Render of '{$label}' is not a PNG.");
     }

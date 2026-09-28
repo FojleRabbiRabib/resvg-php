@@ -127,6 +127,74 @@ string or an array.
 ['width' => $w, 'height' => $h] = $renderer->measure($svg, ['width' => 512]);
 ```
 
+### Parse once, render many
+
+`parse()` returns a `Resvg\Tree` — a parsed document you can render repeatedly, at
+different sizes and backgrounds, without re-parsing.
+
+```php
+$tree = $renderer->parse(file_get_contents('badge.svg'));
+
+$small = $tree->render(['width' => 64]);
+$large = $tree->render(['width' => 512, 'background' => '#ffffff']);
+```
+
+A tree is self-contained: it holds its own font database, so it stays valid even if
+the renderer that produced it is gone.
+
+### Rendering one node
+
+`renderNode()` renders a single element by its `id`, with the same semantics as the
+upstream `resvg --export-id`: only that element is painted, sized to its own
+bounding box.
+
+```php
+$tree->renderNode('chart-legend');
+$tree->renderNode('chart-legend', ['exportArea' => 'page']);   // on a full-page canvas
+```
+
+`nodeIds()` lists every `id` in the document and `hasNode()` tests one.
+
+### Writing SVG back out
+
+`toSvg()` serializes the parsed tree through the upstream writer — useful for
+normalizing a document or inspecting how resvg resolved it.
+
+```php
+$normalized = $tree->toSvg();                          // text converted to paths
+$withText   = $tree->toSvg(['preserveText' => true]);  // keep <text> elements
+$pretty     = $tree->toSvg(['indent' => 'tabs']);
+```
+
+### Streaming large renders
+
+For a large image, pass an `output` sink and the PNG is written straight to it
+rather than returned as a string. The method returns `true` in that case.
+
+```php
+$stream = fopen('/var/www/out.png', 'wb');
+$renderer->render($bigSvg, ['output' => $stream]);   // true
+fclose($stream);
+
+$renderer->render($bigSvg, ['output' => '/var/www/out.png']);   // path also accepted
+```
+
+### Confining referenced files
+
+SVG can reference external images. By default a relative reference resolves against
+`resourcesDir` (or the file's own directory for the `*File()` methods) and an
+absolute path is allowed — which matters when documents are untrusted. Set
+`confineResources` to reject anything outside the root:
+
+```php
+$renderer = new Resvg\Renderer([
+    'resourcesDir'     => '/var/www/svg-assets',
+    'confineResources' => true,   // absolute hrefs and `..` escapes are refused
+]);
+```
+
+See [`docs/security.md`](docs/security.md) for the full threat model.
+
 ### Version
 
 ```php
@@ -140,14 +208,21 @@ Constructor options:
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `fontFamily` | string | `"Times New Roman"` | Family used when the SVG sets no `font-family`. |
-| `fontSize` | float | `12.0` | Size used when the SVG sets no `font-size`. |
+| `fontSize` | float 1..192 | `12.0` | Size used when the SVG sets no `font-size`. |
+| `serifFamily`, `sansSerifFamily`, `cursiveFamily`, `fantasyFamily`, `monospaceFamily` | string | `"Times New Roman"` etc. | Families the SVG generic keywords resolve to. |
 | `languages` | string\|string[] | `"en"` | Resolves the `systemLanguage` attribute. |
 | `fontFiles` | string\|string[] | — | Extra font files to load. |
+| `fontDirs` | string\|string[] | — | Directories of fonts to load. |
+| `loadSystemFonts` | bool | `true` | Scan the system font database. |
 | `resourcesDir` | string | — | Base directory for relative paths in the SVG. |
+| `confineResources` | bool | `false` | Refuse references outside `resourcesDir`. |
 | `stylesheet` | string | — | CSS injected into every document, overriding its own rules. |
-| `dpi` | float | `96.0` | Affects unit conversion. |
+| `dpi` | float 10..4000 | `96.0` | Affects unit conversion. |
 | `width` | int | — | Default width for documents without absolute dimensions. |
 | `height` | int | — | Default height for documents without absolute dimensions. |
+| `shapeRendering` | string | `"geometricPrecision"` | `optimizeSpeed`, `crispEdges`, `geometricPrecision`. |
+| `textRendering` | string | `"optimizeLegibility"` | `optimizeSpeed`, `optimizeLegibility`, `geometricPrecision`. |
+| `imageRendering` | string | `"optimizeQuality"` | `optimizeQuality`, `optimizeSpeed`, `smooth`, `high-quality`, `crisp-edges`, `pixelated`. |
 
 Per-render options:
 
@@ -157,6 +232,11 @@ Per-render options:
 | `height` | int | Target height in pixels. |
 | `zoom` | float | Scale factor. Ignored when `width`/`height` are given. |
 | `background` | string | Background color; any CSS color form resvg accepts. |
+| `exportArea` | string | `"drawing"` (default) or `"page"` — node-export framing. |
+| `output` | resource\|string | Write the PNG here; the method then returns `true`. |
+
+`toSvg()` options: `preserveText`, `idPrefix`, `indent` (`"none"`, `"tabs"`, or `0`–`4`),
+`attrsIndent`, `coordinatesPrecision` (2–8), `transformsPrecision` (2–8), `useSingleQuote`.
 
 ## Error handling
 
@@ -179,15 +259,26 @@ SVG is untrusted input in most applications, and resvg is built to handle it:
 
 - Documents are limited to 1,000,000 elements.
 - External entity and DTD processing is not performed.
-- Referenced resources resolve only through `resourcesDir`, and only for local paths.
 - The renderer cannot open sockets or execute scripts.
+- `resvg.max_input_size` bounds the document size and `resvg.max_render_pixels`
+  bounds the rendered pixel count; both are enforced before the expensive step and
+  fail closed with `Resvg\Exception`.
+- Referenced images are **not** confined by default: a relative href resolves
+  against `resourcesDir`, but an absolute path is allowed. Set `confineResources`
+  to reject absolute hrefs and any path escaping the root.
+
+See [`docs/security.md`](docs/security.md) for the threat model and deployment
+guidance.
 
 ## Documentation
 
 - [`docs/usage.md`](docs/usage.md) — full API and option reference
+- [`docs/security.md`](docs/security.md) — threat model and safe-usage guidance
 - [`docs/installation.md`](docs/installation.md) — build and install detail
 - [`examples/`](examples/) — runnable scripts
 
 ## License
 
-MIT. Vendored resvg is Apache-2.0 OR MIT; see [NOTICE](NOTICE).
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). The NOTICE file carries the
+attribution the license requires; redistributions must preserve it. Vendored resvg is
+Apache-2.0 OR MIT.

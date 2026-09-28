@@ -1,0 +1,11 @@
+/* Fidelity-gate fixture for the `stylesheet` constructor option: CSS rules
+ * outrank presentation attributes, so feeding this to shapes.svg must visibly
+ * override both fills. The extension receives these bytes as CSS text; the
+ * oracle CLI receives the file path.
+ *
+ * Copyright 2026 Fojle Rabbi (Rabib)
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+rect { fill: #0044cc; }
+circle { fill: #cc4400; }

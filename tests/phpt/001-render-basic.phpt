@@ -4,6 +4,8 @@ Resvg\Renderer renders an SVG document to PNG bytes
 resvg
 --FILE--
 <?php
+/* Copyright 2026 Fojle Rabbi (Rabib)
+ * SPDX-License-Identifier: Apache-2.0 */
 $renderer = new Resvg\Renderer();
 $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">'
     . '<rect width="16" height="16" fill="#123456"/></svg>';

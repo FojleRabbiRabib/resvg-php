@@ -7,6 +7,7 @@ This product includes software developed as part of the resvg project.
   https://github.com/linebender/resvg
   Copyright 2017 the Resvg Authors
   Licensed under the Apache License, Version 2.0 OR the MIT license
-  (see vendor upstream: crates/c-api/LICENSE-APACHE, LICENSE-MIT).
+  (see the vendored source: LICENSE-APACHE and LICENSE-MIT at the workspace
+  root of the crates compiled in).
   Vendored and statically linked; version pins and source hashes are recorded
-  in tools/build.sh.
+  in tools/fetch-resvg.sh.

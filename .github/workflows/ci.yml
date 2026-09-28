@@ -54,13 +54,17 @@ jobs:
           php -l resvg.stub.php
           vendor/bin/phpcs
           vendor/bin/phpstan analyse --memory-limit=512M
-          clang-format-14 --dry-run --Werror resvg.c resvg_renderer.c php_resvg.h resvg_internal.h resvg_arginfo.h
+          clang-format-14 --dry-run --Werror ./*.c ./*.h
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.98.1
+        with:
+          components: rustfmt, clippy
 
       - name: Run Rust static gates
         shell: bash
         run: |
           set -euo pipefail
-          rustup component add rustfmt clippy
           cargo fmt --manifest-path native/Cargo.toml -- --check
           cargo clippy --manifest-path native/Cargo.toml -- -D warnings
 
@@ -84,7 +88,7 @@ jobs:
           coverage: none
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.98.1
 
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y curl binutils

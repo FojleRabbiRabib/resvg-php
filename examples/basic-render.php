@@ -3,6 +3,9 @@
 /**
  * Render an SVG document to a PNG file, with sizing, background, and measurement.
  *
+ * Copyright 2026 Fojle Rabbi (Rabib)
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Usage: php -n -d extension=build/resvg-php8.3.so examples/basic-render.php [output.png]
  */
 
@@ -37,6 +40,9 @@ if ($measured !== ['width' => 120, 'height' => 120]) {
 }
 
 $png = $renderer->render($svg, ['width' => 240, 'background' => '#ffffff']);
+if (!is_string($png)) {
+    throw new RuntimeException('Render returned bool, but no "output" sink was given.');
+}
 if (strncmp($png, "\x89PNG\r\n\x1a\n", 8) !== 0) {
     throw new RuntimeException('Output is not a PNG.');
 }

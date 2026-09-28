@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # tools/build.sh — build a static, symbol-isolated resvg.so for one PHP ABI.
 #
+# Copyright 2026 Fojle Rabbi (Rabib)
+# SPDX-License-Identifier: Apache-2.0
+#
 # Three stages: fetch+verify the pinned resvg source, compile the Rust shim to a
 # static archive, then build and relink the C extension with that archive inside.
 #
@@ -10,6 +13,7 @@ set -euo pipefail
 
 RESVG_VERSION="${RESVG_VERSION:-0.48.1}"
 RESVG_SHA256="${RESVG_SHA256:-40dafea6b4b9d01e9d28b6d49f1e912daf3e9055676ad9179a5a2db6e7386945}"
+export RESVG_VERSION RESVG_SHA256
 PHPV="${1:-${PHP_VERSION:-8.3}}"
 DEBUG="${DEBUG:-0}"
 SKIP_GATE="${SKIP_GATE:-0}"
@@ -22,10 +26,7 @@ case "$DEBUG" in 0|1) ;; *) echo "FAIL: DEBUG must be 0 or 1" >&2; exit 2 ;; esa
 case "$SKIP_GATE" in 0|1) ;; *) echo "FAIL: SKIP_GATE must be 0 or 1" >&2; exit 2 ;; esac
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-V="$ROOT/vendor-src"
 B="$ROOT/build"
-SRC="$V/resvg-$RESVG_VERSION"
-TARBALL="$V/resvg-v$RESVG_VERSION.tar.gz"
 LIB="$ROOT/native/target/release/libresvg_php.a"
 DEBUG_SUFFIX=""
 [ "$DEBUG" = "1" ] && DEBUG_SUFFIX="-debug"
@@ -33,8 +34,9 @@ OUT="$B/resvg-php$PHPV$DEBUG_SUFFIX.so"
 
 # Extension sources live at the repository root (PECL/PIE-canonical layout).
 EXT_SOURCES=(
-	config.m4 php_resvg.h resvg.c resvg.stub.php resvg_arginfo.h
-	resvg_internal.h resvg_renderer.c resvg.map
+	config.m4 php_resvg.h resvg.c resvg_options.c resvg_exception.c
+	resvg_renderer.c resvg_document.c resvg.stub.php resvg_arginfo.h
+	resvg_internal.h resvg.map Makefile.frag
 )
 
 PHP_BIN="php$PHPV"
@@ -54,10 +56,13 @@ command -v cargo >/dev/null 2>&1 || {
 }
 
 case "$DEBUG" in
-	1) HARDEN_CFLAGS="-fPIC -fstack-protector-strong -g -O0 -fno-omit-frame-pointer"; STRIP_FLAG="" ;;
-	*) HARDEN_CFLAGS="-fPIC -fstack-protector-strong -D_FORTIFY_SOURCE=2 -O2"; STRIP_FLAG="-s" ;;
+	1) PROFILE_CFLAGS="-g -O0 -fno-omit-frame-pointer"; STRIP_FLAG="" ;;
+	*) PROFILE_CFLAGS="-O2"; STRIP_FLAG="-s" ;;
 esac
-WARN_CFLAGS="-Wall -Wextra -Werror"
+# The security hardening itself lives in config.m4 (§9), so the canonical
+# `phpize && ./configure && make` path and this driver produce the same hardened
+# object. build.sh injects only the optimization profile, which it is allowed to
+# differ on (DEBUG wants -O0 and must win over config.m4's flags).
 HARDEN_LDFLAGS="-Wl,-z,relro,-z,now,-z,noexecstack"
 
 verify_php_toolchain() {
@@ -129,28 +134,19 @@ verify_loadable() {
 verify_php_toolchain
 
 echo ">> [1/5] fetch and verify resvg v$RESVG_VERSION"
-mkdir -p "$V"
-[ -f "$TARBALL" ] || curl -fsSL -o "$TARBALL" \
-	"https://codeload.github.com/linebender/resvg/tar.gz/refs/tags/v$RESVG_VERSION"
-actual_sha="$(sha256sum "$TARBALL" | awk '{print $1}')"
-[ "$actual_sha" = "$RESVG_SHA256" ] || {
-	echo "FAIL: resvg SHA256 mismatch (expected $RESVG_SHA256, got $actual_sha)" >&2
-	exit 1
-}
-if [ ! -d "$SRC/crates/resvg" ]; then
-	rm -rf "$SRC"
-	mkdir -p "$SRC"
-	tar xzf "$TARBALL" -C "$SRC" --strip-components=1
-fi
-printf '%s\n' "$RESVG_SHA256" > "$SRC/.verified-source-sha256"
+"$ROOT/tools/fetch-resvg.sh" >/dev/null
 echo "   resvg $RESVG_VERSION SHA256 OK"
 
 echo ">> [2/5] compile the Rust shim to a static archive"
+# Run cargo with the working directory inside native/, so native/rust-toolchain.toml
+# governs the compiler (rustup resolves the toolchain file by walking up from the
+# CWD) and the release artifact cannot float with the host's `rustup default`.
+# Makefile.frag runs it the same way for the canonical `phpize && make` path.
 if [ "$DEBUG" = "1" ]; then
-	cargo build --manifest-path "$ROOT/native/Cargo.toml"
+	(cd "$ROOT/native" && cargo build --locked)
 	LIB="$ROOT/native/target/debug/libresvg_php.a"
 else
-	cargo build --release --manifest-path "$ROOT/native/Cargo.toml"
+	(cd "$ROOT/native" && cargo build --release --locked)
 fi
 [ -f "$LIB" ] || { echo "FAIL: $LIB missing" >&2; exit 1; }
 echo "   $(du -h "$LIB" | cut -f1) libresvg_php.a"
@@ -165,9 +161,12 @@ done
 (
 	cd "$EB"
 	PHP_CONFIG="$PHP_CONFIG_BIN_PATH" "$PHPIZE_BIN_PATH" >/tmp/resvg-phpize.log 2>&1
-	CFLAGS="${CFLAGS:-} $HARDEN_CFLAGS $WARN_CFLAGS" \
+	CFLAGS="${CFLAGS:-} $PROFILE_CFLAGS" \
 		LDFLAGS="${LDFLAGS:-}" \
 		RESVG_SHIM_INCLUDE="$ROOT/native/include" \
+		RESVG_NATIVE_DIR="$ROOT/native" \
+		RESVG_ARCHIVE="$LIB" \
+		RESVG_VENDOR_DIR="$ROOT/vendor-src" \
 		./configure --enable-resvg --with-php-config="$PHP_CONFIG_BIN_PATH" \
 		>/tmp/resvg-configure.log 2>&1
 	make -j"$(nproc)" >/tmp/resvg-make.log 2>&1 || {

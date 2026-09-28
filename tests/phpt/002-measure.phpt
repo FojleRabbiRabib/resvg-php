@@ -4,6 +4,8 @@ Resvg\Renderer::measure reports the render size without encoding a PNG
 resvg
 --FILE--
 <?php
+/* Copyright 2026 Fojle Rabbi (Rabib)
+ * SPDX-License-Identifier: Apache-2.0 */
 $renderer = new Resvg\Renderer();
 $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60">'
     . '<rect width="120" height="60"/></svg>';

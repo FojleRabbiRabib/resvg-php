@@ -1,7 +1,25 @@
 {
-  "name": "resvg-php/quality-tools",
-  "description": "Development quality tooling for the resvg extension",
-  "license": "MIT",
+  "name": "resvg-php/resvg",
+  "description": "Render SVG to PNG in-process, backed by a statically linked build of resvg",
+  "type": "php-ext",
+  "license": "Apache-2.0",
+  "keywords": ["svg", "png", "resvg", "rasterizer", "image"],
+  "homepage": "https://github.com/FojleRabbiRabib/resvg-php",
+  "authors": [
+    {
+      "name": "Fojle Rabbi (Rabib)",
+      "role": "Lead"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/FojleRabbiRabib/resvg-php/issues",
+    "source": "https://github.com/FojleRabbiRabib/resvg-php",
+    "docs": "https://github.com/FojleRabbiRabib/resvg-php/blob/main/docs/usage.md"
+  },
+  "php-ext": {
+    "extension-name": "resvg"
+  },
+  "download-url-method": ["pre-packaged-binary", "composer-default"],
   "require-dev": {
     "phpstan/phpstan": "^2.1",
     "squizlabs/php_codesniffer": "^3.13"

@@ -352,6 +352,7 @@ dependencies = [
 name = "resvg-php-shim"
 version = "0.1.0"
 dependencies = [
+ "imagesize",
  "resvg",
  "svgtypes",
  "tiny-skia",

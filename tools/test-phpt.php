@@ -4,6 +4,9 @@
 /**
  * Minimal .phpt runner.
  *
+ * Copyright 2026 Fojle Rabbi (Rabib)
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * PHP's own run-tests.php ships with php-src, which is not required to build this
  * extension, so the suite runs through this driver instead. It supports the sections
  * this project uses: TEST, EXTENSIONS, FILE, EXPECT, and EXPECTF.
@@ -14,7 +17,7 @@
 declare(strict_types=1);
 
 $extension = $argv[1] ?? '';
-$testDir = $argv[2] ?? __DIR__ . '/../tests';
+$testDir = $argv[2] ?? __DIR__ . '/../tests/phpt';
 
 if ($extension === '' || !is_file($extension)) {
     fwrite(STDERR, "test-phpt: usage: php tools/test-phpt.php <resvg.so> [tests/]\n");
@@ -24,6 +27,20 @@ $extension = realpath($extension);
 if ($extension === false) {
     fwrite(STDERR, "test-phpt: cannot resolve extension path\n");
     exit(2);
+}
+
+/* The extension must be loaded by a PHP of the matching ABI, not necessarily the
+ * one running this driver: a php8.3 driver loading resvg-php8.4.so aborts with an
+ * API mismatch. The ABI is taken from the artifact name; PHP_BIN overrides. */
+$phpBin = getenv('PHP_BIN');
+if ($phpBin === false || $phpBin === '') {
+    $phpBin = PHP_BINARY;
+    if (preg_match('/php(8\.[3-5])(?:-debug)?\.so$/', basename($extension), $m)) {
+        $candidate = trim((string) shell_exec('command -v php' . escapeshellarg($m[1])));
+        if ($candidate !== '') {
+            $phpBin = $candidate;
+        }
+    }
 }
 
 $files = glob(rtrim($testDir, '/') . '/*.phpt');
@@ -69,7 +86,7 @@ foreach ($files as $file) {
     exec(
         sprintf(
             '%s -n -d extension=%s %s 2>&1',
-            escapeshellarg(PHP_BINARY),
+            escapeshellarg($phpBin),
             escapeshellarg($extension),
             escapeshellarg($script),
         ),
