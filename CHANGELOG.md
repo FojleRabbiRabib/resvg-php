@@ -6,6 +6,8 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-30
+
 ### Added
 
 - `Resvg\Renderer` with `render()`, `measure()`, and `version()`, backed by a vendored

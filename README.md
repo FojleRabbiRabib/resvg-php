@@ -1,5 +1,7 @@
 # resvg-php
 
+[![CI](https://github.com/FojleRabbiRabib/resvg-php/actions/workflows/ci.yml/badge.svg)](https://github.com/FojleRabbiRabib/resvg-php/actions/workflows/ci.yml)
+
 Render SVG to PNG from PHP — in-process, dependency-free, with the full SVG feature
 set of [resvg](https://github.com/linebender/resvg).
 
@@ -35,13 +37,31 @@ ZTS (thread-safe) builds are not yet validated; the extension is tested on NTS o
 
 ## Installation
 
+### PIE (recommended)
+
+[PIE](https://github.com/php/pie) resolves the package and installs the matching
+prebuilt binary for your PHP version, falling back to a source build when no
+prebuilt asset matches:
+
+```sh
+pie install resvg-php/resvg
+```
+
 ### Prebuilt
 
-Download the `.so` matching your PHP ABI from the releases page and add it to your
-`php.ini`:
+Download the assets for your PHP ABI from the releases page. Each release carries
+a PIE archive per ABI (`php_resvg-<version>_php8.N-<arch>-linux-glibc-nts.zip`
+wrapping `resvg.so`), a bare `resvg-php8.N-linux-<arch>.so` for direct download,
+`SHA256SUMS`, and cosign signature bundles. Verify and add it to your `php.ini`:
+
+```sh
+sha256sum -c SHA256SUMS
+cosign verify-blob --bundle resvg-php8.3-linux-x86_64.so.bundle \
+    resvg-php8.3-linux-x86_64.so
+```
 
 ```ini
-extension=/path/to/resvg-php8.3.so
+extension=/path/to/resvg-php8.3-linux-x86_64.so
 ```
 
 ### From source
