@@ -267,3 +267,19 @@ exception messages.
   re-encode step between the raster surface and the returned bytes.
 - For large images, prefer the `output` sink over the returned string: the PNG is
   written straight out instead of copied into a PHP string.
+
+### Benchmark ratchet
+
+`tools/benchmark.php` measures throughput (ops/sec) and real OS memory
+(`VmRSS`/`VmHWM`) for representative workloads. The repository tracks a recorded
+baseline at `tests/benchmark/baseline.json`; compare a run against it locally:
+
+```sh
+php -n -d extension=build/resvg-php8.3.so tools/benchmark.php \
+    --iterations=500 --compare=tests/benchmark/baseline.json
+```
+
+A comparison exits non-zero when any case regresses past the threshold (default
+15%). Absolute numbers are host-relative — the ratchet compares like-for-like on
+the same machine, which is why CI does not run it. Record a fresh baseline after
+hardware changes with `--record=tests/benchmark/baseline.json`.

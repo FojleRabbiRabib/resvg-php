@@ -1,0 +1,36 @@
+{
+    "version": "0.1.0+resvg.0.48.1",
+    "php_version": "8.3.35",
+    "timestamp": "2026-09-30T14:59:00+00:00",
+    "iterations": 500,
+    "cases": {
+        "shapes": {
+            "description": "Basic geometric paths (shapes.svg)",
+            "rps": 1745.03,
+            "ms_per_op": 0.573,
+            "rss_kb": 17988,
+            "hwm_kb": 17992
+        },
+        "gradient": {
+            "description": "Gradients and blending (gradient.svg)",
+            "rps": 686.3,
+            "ms_per_op": 1.457,
+            "rss_kb": 18376,
+            "hwm_kb": 18640
+        },
+        "text": {
+            "description": "Text rendering with pinned font (text.svg)",
+            "rps": 821.94,
+            "ms_per_op": 1.217,
+            "rss_kb": 19460,
+            "hwm_kb": 19460
+        },
+        "tree-reuse": {
+            "description": "Parse once, render many (Tree::render())",
+            "rps": 5922.84,
+            "ms_per_op": 0.169,
+            "rss_kb": 19460,
+            "hwm_kb": 19460
+        }
+    }
+}
