@@ -6,6 +6,17 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-01
+
+### Fixed
+
+- PIE prebuilt-binary installs: `download-url-method` moved into the `php-ext`
+  composer metadata where the installer reads it, so `pie install
+  resvg-php/resvg` uses the matching release archive instead of falling back
+  to a source build.
+- Release archives are additionally published under the full tag version name
+  (`php_resvg-v0.1.1+resvg.0.48.1_...`), which is the name PIE resolves.
+
 ## [0.1.0] - 2026-09-30
 
 ### Added

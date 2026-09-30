@@ -10,7 +10,9 @@
 # download, and generates SHA256SUMS and provenance records under build/dist/.
 #
 # Env: RESVG_VERSION, OUT_DIR (default: build/dist), ARCH (default: from uname -m),
-#      ABIS (space-separated subset, default: "8.3 8.4 8.5").
+#      ABIS (space-separated subset, default: "8.3 8.4 8.5"),
+#      RELEASE_TAG (optional, e.g. v0.1.0+resvg.0.48.1 — PIE resolves packages by the
+#      full tag version, so archives are additionally published under that name).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -67,6 +69,17 @@ for php_ver in "${ABIS[@]}"; do
 	)
 	rm -rf "$TMP_STAGE"
 	echo "   packaged PIE asset: $PIE_ZIP_NAME"
+
+	# PIE resolves the package by the tag's full version (pretty version, e.g.
+	# v0.1.0+resvg.0.48.1), so publish the identical archive under that name too;
+	# PIE lowercases its expectation, so the alternate name is lowercased to match
+	# under either strict or case-folded comparison.
+	if [ -n "${RELEASE_TAG:-}" ]; then
+		PIE_TAG_ZIP_NAME="$(printf 'php_resvg-%s_php%s-%s-linux-glibc-nts.zip' \
+			"$RELEASE_TAG" "$php_ver" "$ARCH" | tr '[:upper:]' '[:lower:]')"
+		cp "$OUT_DIR/$PIE_ZIP_NAME" "$OUT_DIR/$PIE_TAG_ZIP_NAME"
+		echo "   packaged PIE asset (tag-version name): $PIE_TAG_ZIP_NAME"
+	fi
 
 	# 2. Direct-download bare .so:
 	BARE_SO_NAME="resvg-php${php_ver}-linux-${ARCH}.so"

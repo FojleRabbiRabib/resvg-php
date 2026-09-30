@@ -1104,7 +1104,10 @@ pub extern "C" fn resvg_php_last_error() -> *const c_char {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn resvg_php_version() -> *const c_char {
-    static VERSION: &[u8] = b"0.1.0+resvg.0.48.1\0";
+    // Composite version: package version from php_resvg.h (injected by build.rs)
+    // plus the pinned upstream resvg release. Keep the pin in sync with
+    // tools/fetch-resvg.sh when bumping upstream.
+    static VERSION: &[u8] = concat!(env!("RSP_PACKAGE_VERSION"), "+resvg.0.48.1\0").as_bytes();
     VERSION.as_ptr() as *const c_char
 }
 

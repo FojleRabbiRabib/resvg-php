@@ -11,7 +11,7 @@ extern zend_module_entry resvg_module_entry;
 #define phpext_resvg_ptr &resvg_module_entry
 
 /* Packaging version: plain semver, valid in package.xml and version_compare. */
-#define PHP_RESVG_VERSION "0.1.0"
+#define PHP_RESVG_VERSION "0.1.1"
 #define PHP_RESVG_EXTNAME "resvg"
 
 ZEND_BEGIN_MODULE_GLOBALS(resvg)

@@ -49,6 +49,7 @@ jobs:
       - name: Build, gate, and package PHP ${{ matrix.php }}
         env:
           ABIS: ${{ matrix.php }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: tools/release-build.sh
 
       - name: Upload release assets

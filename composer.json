@@ -17,9 +17,9 @@
     "docs": "https://github.com/FojleRabbiRabib/resvg-php/blob/main/docs/usage.md"
   },
   "php-ext": {
-    "extension-name": "resvg"
+    "extension-name": "resvg",
+    "download-url-method": ["pre-packaged-binary", "composer-default"]
   },
-  "download-url-method": ["pre-packaged-binary", "composer-default"],
   "require-dev": {
     "phpstan/phpstan": "^2.1",
     "squizlabs/php_codesniffer": "^3.13"
