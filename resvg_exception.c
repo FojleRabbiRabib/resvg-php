@@ -16,7 +16,7 @@
 
 zend_class_entry *resvg_exception_ce = NULL;
 
-/* The class constants are the ABI status codes (§4.1); the same set appears in
+/* The class constants are the ABI status codes; the same set appears in
  * resvg_internal.h, resvg_php_shim.h, and resvg.stub.php. `getCode()` is
  * inherited from RuntimeException and returns the code passed at throw time. */
 zend_result resvg_register_exception_class(void)

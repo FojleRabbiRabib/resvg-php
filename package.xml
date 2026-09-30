@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package packagerversion="1.10.0" version="2.0"
+         xmlns="http://pear.php.net/dtd/package-2.0"
+         xmlns:tasks="http://pear.php.net/dtd/tasks-1.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+ <name>resvg</name>
+ <channel>pecl.php.net</channel>
+ <summary>Render SVG to PNG in-process with resvg</summary>
+ <description>Render SVG documents to PNG bytes in-process, backed by a
+statically linked, hash-verified build of resvg 0.48.1. Byte-identical to
+the upstream resvg CLI on every gated fixture row. Holds a reusable font
+database per renderer; documents parse once and render many. Ships
+PNG fidelity and toSvg writer gates, resource ceilings, and opt-in
+resource confinement for untrusted input.</description>
+ <lead>
+  <name>Fojle Rabbi (Rabib)</name>
+  <user>rabib</user>
+  <email>36526962+FojleRabbiRabib@users.noreply.github.com</email>
+  <active>yes</active>
+ </lead>
+ <date>2026-09-29</date>
+ <time>12:00:00</time>
+ <version>
+  <release>0.1.0</release>
+  <api>0.1.0</api>
+ </version>
+ <stability>
+  <release>devel</release>
+  <api>devel</api>
+ </stability>
+ <license uri="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</license>
+ <notes>
+Initial release: Resvg\Renderer and Resvg\Tree, PNG and toSvg fidelity
+gates against the upstream CLIs, resource ceilings, and confinement.
+ </notes>
+ <contents>
+  <dir name="/">
+   <file role="src" name="config.m4"/>
+   <file role="src" name="Makefile.frag"/>
+   <file role="src" name="php_resvg.h"/>
+   <file role="src" name="resvg.c"/>
+   <file role="src" name="resvg_renderer.c"/>
+   <file role="src" name="resvg_document.c"/>
+   <file role="src" name="resvg_exception.c"/>
+   <file role="src" name="resvg_options.c"/>
+   <file role="src" name="resvg_internal.h"/>
+   <file role="src" name="resvg_arginfo.h"/>
+   <file role="src" name="resvg.stub.php"/>
+   <file role="src" name="resvg.map"/>
+   <file role="src" name="composer.json"/>
+   <file role="src" name="tools/fetch-resvg.sh"/>
+   <file role="src" name="native/Cargo.toml"/>
+   <file role="src" name="native/Cargo.lock"/>
+   <file role="src" name="native/rust-toolchain.toml"/>
+   <file role="src" name="native/include/resvg_php_shim.h"/>
+   <file role="src" name="native/src/lib.rs"/>
+   <file role="doc" name="README.md"/>
+   <file role="doc" name="CHANGELOG.md"/>
+   <file role="doc" name="LICENSE"/>
+   <file role="doc" name="NOTICE"/>
+   <file role="doc" name="docs/installation.md"/>
+   <file role="doc" name="docs/usage.md"/>
+   <file role="doc" name="docs/security.md"/>
+   <file role="test" name="tests/phpt/001-render-basic.phpt"/>
+   <file role="test" name="tests/phpt/002-measure.phpt"/>
+   <file role="test" name="tests/phpt/003-error-malformed.phpt"/>
+  </dir>
+ </contents>
+ <dependencies>
+  <required>
+   <php>
+    <min>8.3.0</min>
+   </php>
+   <pearinstaller>
+    <min>1.10.0</min>
+   </pearinstaller>
+  </required>
+ </dependencies>
+ <providesextension>resvg</providesextension>
+ <extsrcrelease>
+   <configureoption name="enable-resvg" default="enable" prompt="Enable resvg extension?"/>
+ </extsrcrelease>
+</package>

@@ -42,6 +42,20 @@ Semantic Versioning.
 - toSvg fidelity gate: byte-identical output versus the upstream `usvg` CLI over
   the full `WriteOptions` surface and its boundary values.
 - Valgrind memory gate over lifecycle churn, error paths, and fork churn.
+- `tools/test-memory.sh` driver running the Valgrind suite across both ZendMM
+  modes (0 definite, 0 indirect leaks gate) and a dedicated PHP 8.3 CI job.
+- `tools/test-examples.sh` runner verifying all `examples/*.php` across all ABIs.
+- `tools/benchmark.php` reporting throughput (ops/sec) and real OS memory
+  (VmRSS/VmHWM via `/proc/self/status`), with baseline recording and comparison.
+- `tools/release-build.sh` assembling PIE-canonical zip archives wrapping `resvg.so`
+  and bare `.so` direct-download assets, with `SHA256SUMS` and provenance records.
+- `.github/workflows/release.yml` tag workflow assembling releases with syft SBOMs
+  and keyless cosign signatures.
+- Vendored `tools/gen_stub.php` from php-src and a CI arginfo drift gate
+  regenerating `resvg_arginfo.h` from `resvg.stub.php`.
+- Canonical PECL `package.xml` manifest and PIE `composer.json` integration.
+- Community and support surfaces: `.github/SECURITY.md`, `.github/FUNDING.yml`,
+  and GitHub issue templates.
 
 ### Changed
 

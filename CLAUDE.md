@@ -30,13 +30,23 @@ tools/build.sh 8.4 SKIP_GATE=1
 tools/build-oracle.sh         # build the upstream resvg CLI (the gate's oracle)
 tools/test-fidelity.sh build/resvg-php8.3.so
 tools/test-phpt.php build/resvg-php8.3.so
+tools/test-memory.sh build/resvg-php8.3.so   # Valgrind gate, needs valgrind
+tools/test-examples.sh build/resvg-php8.3.so
+tools/release-build.sh        # all ABIs -> build/dist/ (PIE zips, SHA256SUMS, provenance)
 
 vendor/bin/phpcs
 vendor/bin/phpstan analyse
-clang-format-14 -i *.c *.h
+clang-format-14 -i *.c *.h    # never on resvg_arginfo.h — it is generator-formatted
+php tools/gen_stub.php resvg.stub.php   # regenerate arginfo; `git diff resvg_arginfo.h` must stay empty
 cargo fmt --manifest-path native/Cargo.toml
 cargo clippy --manifest-path native/Cargo.toml -- -D warnings
 ```
+
+`resvg_arginfo.h` is generated: `tools/gen_stub.php` (vendored from php-src) is its
+authority, and CI regenerates it and fails on any diff. Never hand-edit or
+clang-format it. `Resvg\Exception` and its constants are registered in C, not
+generated — the values come from the same `RESVG_STATUS_*` macros as the throw
+sites.
 
 ## The fidelity gate
 

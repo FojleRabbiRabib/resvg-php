@@ -2,14 +2,17 @@
 
 /**
  * The public API of the resvg extension. Mirrors resvg_arginfo.h and the design
- * record's locked surface; the CI arginfo-drift gate regenerates resvg_arginfo.h
- * from this file and fails on any diff.
+ * record's locked surface; the CI arginfo-drift gate regenerates the arginfo
+ * bodies from this file and fails on any diff. Class entries and the
+ * `Resvg\Exception` constants are registered in C on purpose: the constant
+ * values come from the same RESVG_STATUS_* macros as the throw sites, so the
+ * declared codes can never drift from the raised ones. gen_stub therefore runs
+ * without @generate-class-entries and emits arginfo declarations only; the
+ * signatures below are the single source for those declarations.
  *
  * Copyright 2026 Fojle Rabbi (Rabib)
  * SPDX-License-Identifier: Apache-2.0
  */
-
-/** @generate-class-entries */
 
 namespace Resvg
 {
@@ -20,25 +23,26 @@ namespace Resvg
      */
     class Exception extends \RuntimeException
     {
-        public const PARSE_FAILED = 4;
-        public const NOT_UTF8 = 2;
-        public const INVALID_SIZE = 3;
-        public const ELEMENTS_LIMIT = 11;
-        public const MALFORMED_GZIP = 12;
-        public const SVGZ_DISABLED = 13;
-        public const NO_SUCH_NODE = 9;
-        public const ZERO_SIZE_NODE = 10;
-        public const ENCODE_FAILED = 6;
-        public const ALLOCATION_FAILED = 5;
-        public const INVALID_ARGUMENT = 8;
-        public const INTERNAL = 7;
-        public const TOO_LARGE = 14;
+        public const int PARSE_FAILED = 4;
+        public const int NOT_UTF8 = 2;
+        public const int INVALID_SIZE = 3;
+        public const int ELEMENTS_LIMIT = 11;
+        public const int MALFORMED_GZIP = 12;
+        public const int SVGZ_DISABLED = 13;
+        public const int NO_SUCH_NODE = 9;
+        public const int ZERO_SIZE_NODE = 10;
+        public const int ENCODE_FAILED = 6;
+        public const int ALLOCATION_FAILED = 5;
+        public const int INVALID_ARGUMENT = 8;
+        public const int INTERNAL = 7;
+        public const int TOO_LARGE = 14;
     }
 
     final class Renderer
     {
         /**
-         * @param array<string, mixed> $options
+         * The option keys mirror the design record's locked surface; unknown
+         * keys and wrongly typed values raise ValueError.
          */
         public function __construct(array $options = [])
         {
@@ -46,22 +50,19 @@ namespace Resvg
 
         /**
          * Parses an SVG or SVGZ document, reusing the renderer's font database.
-         *
-         * @return Tree
+         * Returns a self-contained Tree.
          */
         public function parse(string $svg): Tree
         {
         }
 
-        /** @return Tree */
+        /** Parses the file at the given path. Returns a self-contained Tree. */
         public function parseFile(string $path): Tree
         {
         }
 
         /**
          * Returns the encoded PNG, or true when `output` sends it to a sink.
-         *
-         * @param array<string, mixed> $options
          */
         public function render(string $svg, array $options = []): string|bool
         {
@@ -69,24 +70,22 @@ namespace Resvg
 
         /**
          * Returns the encoded PNG, or true when `output` sends it to a sink.
-         *
-         * @param array<string, mixed> $options
          */
         public function renderFile(string $path, array $options = []): string|bool
         {
         }
 
         /**
-         * @param array<string, mixed> $options
-         * @return array{width: int, height: int}
+         * Returns the pixel dimensions a render with the same options would
+         * produce, without rasterizing: a width/height map.
          */
         public function measure(string $svg, array $options = []): array
         {
         }
 
         /**
-         * @param array<string, mixed> $options
-         * @return array{width: int, height: int}
+         * Returns the pixel dimensions for the file at the given path: a
+         * width/height map.
          */
         public function measureFile(string $path, array $options = []): array
         {
@@ -94,8 +93,6 @@ namespace Resvg
 
         /**
          * The loaded font faces as a family => path map.
-         *
-         * @return array<string, string>
          */
         public function fonts(): array
         {
@@ -120,24 +117,26 @@ namespace Resvg
         {
         }
 
-        /** @return array{width: float, height: float} */
+        /** The document's intrinsic size in user units, as a width/height map. */
         public function size(): array
         {
         }
 
-        /** @return array{x: float, y: float, width: float, height: float}|null */
+        /**
+         * The drawing's bounding box as an x/y/width/height map, or null when
+         * the document draws nothing.
+         */
         public function boundingBox(): ?array
         {
         }
 
+        /** Whether an element with this id exists. */
         public function hasNode(string $id): bool
         {
         }
 
         /**
          * Every id in the document, in document order.
-         *
-         * @return list<string>
          */
         public function nodeIds(): array
         {
@@ -145,8 +144,6 @@ namespace Resvg
 
         /**
          * Returns the encoded PNG, or true when `output` sends it to a sink.
-         *
-         * @param array<string, mixed> $options
          */
         public function render(array $options = []): string|bool
         {
@@ -155,8 +152,6 @@ namespace Resvg
         /**
          * Renders one node by id, `--export-id` semantics. Returns the encoded
          * PNG, or true when `output` sends it to a sink.
-         *
-         * @param array<string, mixed> $options
          */
         public function renderNode(string $id, array $options = []): string|bool
         {
@@ -164,8 +159,6 @@ namespace Resvg
 
         /**
          * Serializes the document back to SVG through upstream's writer.
-         *
-         * @param array<string, mixed> $options
          */
         public function toSvg(array $options = []): string
         {

@@ -4,6 +4,12 @@ parameters:
         - examples
         - tests
         - tools
+    excludePaths:
+        # Vendored upstream tooling: gen_stub.php is php-src's generator and
+        # PHP-Parser* is its runtime dependency, both analysed by their own
+        # projects, not held to this repository's level-7 bar.
+        - tools/gen_stub.php
+        - tools/PHP-Parser*
     scanFiles:
         - resvg.stub.php
     tmpDir: build/phpstan

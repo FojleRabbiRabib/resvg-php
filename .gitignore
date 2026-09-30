@@ -28,6 +28,7 @@ run-tests.php
 /vendor-src/
 /vendor/
 /dist/
+tools/PHP-Parser*/
 
 # Rust build artifacts (the pinned vendor-src fetch is also untracked by design)
 native/**/target/

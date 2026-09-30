@@ -59,7 +59,7 @@ case "$DEBUG" in
 	1) PROFILE_CFLAGS="-g -O0 -fno-omit-frame-pointer"; STRIP_FLAG="" ;;
 	*) PROFILE_CFLAGS="-O2"; STRIP_FLAG="-s" ;;
 esac
-# The security hardening itself lives in config.m4 (§9), so the canonical
+# The security hardening itself lives in config.m4, so the canonical
 # `phpize && ./configure && make` path and this driver produce the same hardened
 # object. build.sh injects only the optimization profile, which it is allowed to
 # differ on (DEBUG wants -O0 and must win over config.m4's flags).

@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an enhancement or new capability
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        resvg-php wraps the upstream `resvg` core. If a requested feature requires
+        changes to SVG parsing or rasterization itself, it may need to be filed
+        upstream at https://github.com/linebender/resvg first.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve, or what capability is missing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed solution or PHP API design
+      description: How should the PHP-facing API look? (Prefer explicit options on existing methods over new standalone surfaces.)
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or alternatives exist today?

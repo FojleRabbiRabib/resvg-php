@@ -1,0 +1,157 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build PHP ${{ matrix.php }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4', '8.5']
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+          extensions: pcntl
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.98.1
+
+      - name: Fetch the pinned resvg source
+        run: tools/fetch-resvg.sh
+
+      - name: Restore Rust dependency cache
+        uses: Swatinem/rust-cache@v2.9.2
+        with:
+          shared-key: resvg-build
+          add-job-id-key: false
+          workspaces: |
+            native
+            vendor-src/resvg-0.48.1
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Build, gate, and package PHP ${{ matrix.php }}
+        env:
+          ABIS: ${{ matrix.php }}
+        run: tools/release-build.sh
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: release-php${{ matrix.php }}
+          path: build/dist/*
+          if-no-files-found: error
+          retention-days: 3
+
+  finalize:
+    name: Assemble and publish release
+    needs: [build]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      SYFT_VERSION: '1.52.0'
+      SYFT_SHA256: 'caeedb81fb0491615f1ebd1761e4145d41ee86dd2cc7bf80669f9f5ad9d6133d'
+      COSIGN_VERSION: '3.1.3'
+      COSIGN_SHA256: '4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Download built assets
+        uses: actions/download-artifact@v8.0.1
+        with:
+          pattern: release-php*
+          merge-multiple: true
+          path: build/dist
+
+      - name: Verify tag provenance, version lockstep, and rolled CHANGELOG
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          base="${tag#v}"
+          base="${base%%+*}"
+          ext_version="$(awk -F'"' '/#define PHP_RESVG_VERSION/ {print $2}' php_resvg.h)"
+          if [ "$base" != "$ext_version" ]; then
+            echo "FAIL: tag $tag base version '$base' != PHP_RESVG_VERSION '$ext_version'" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main; then
+            echo "FAIL: tag $tag is not on main" >&2
+            exit 1
+          fi
+          if ! grep -qE "^## \[$base\]" CHANGELOG.md; then
+            echo "FAIL: CHANGELOG.md has no '## [$base]' section; roll [Unreleased] first" >&2
+            exit 1
+          fi
+          printf 'RELEASE_BASE=%s\n' "$base" >> "$GITHUB_ENV"
+
+      - name: Generate the SBOM (syft, pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL --retry 3 -o "$archive" \
+            "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          printf '%s  %s\n' "$SYFT_SHA256" "$archive" | sha256sum -c -
+          tar xzf "$archive" -C "$RUNNER_TEMP" syft
+          "$RUNNER_TEMP/syft" dir:build/dist -o spdx-json > /tmp/sbom.spdx.json
+          mv /tmp/sbom.spdx.json "build/dist/resvg-php-${RELEASE_BASE}-sbom.spdx.json"
+
+      - name: Regenerate SHA256SUMS over all assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build/dist
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -print | sort | xargs sha256sum > /tmp/rsp-release-sums.tmp
+          mv /tmp/rsp-release-sums.tmp SHA256SUMS
+
+      - name: Install cosign (pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/cosign" \
+            "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64"
+          printf '%s  %s\n' "$COSIGN_SHA256" "$RUNNER_TEMP/cosign" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/cosign"
+
+      - name: Sign every release asset (cosign keyless)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build/dist
+          for f in *; do
+            [ -f "$f" ] || continue
+            [ "$f" = "SHA256SUMS" ] && continue
+            "$RUNNER_TEMP/cosign" sign-blob --yes --bundle "$f.bundle" "$f"
+          done
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            --title "resvg-php $GITHUB_REF_NAME" \
+            --notes "Static per-ABI builds of the resvg extension. See CHANGELOG.md for this release's changes; verify assets with SHA256SUMS and the cosign bundles." \
+            build/dist/*

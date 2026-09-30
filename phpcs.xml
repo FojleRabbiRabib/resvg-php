@@ -13,6 +13,10 @@
 
     <arg name="extensions" value="php"/>
 
+    <!-- Vendored upstream tooling follows php-src's own style, not PSR-12. -->
+    <exclude-pattern>tools/gen_stub\.php</exclude-pattern>
+    <exclude-pattern>tools/PHP-Parser[^/]*/</exclude-pattern>
+
     <file>resvg.stub.php</file>
     <file>examples</file>
     <file>tools</file>

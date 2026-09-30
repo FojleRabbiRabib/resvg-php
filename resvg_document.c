@@ -85,7 +85,7 @@ void resvg_parse_into_zval(resvg_php_options *handle, zend_string *bytes,
 	Z_RESVG_TREE_P(return_value)->handle = tree;
 }
 
-/* The §7 pixel ceiling is enforced by the shim on the *produced* size — after
+/* The pixel ceiling is enforced by the shim on the *produced* size — after
  * fit-to has resolved it — so zoom, single-side fit, default-size and node
  * exports are all bounded. A C-side pre-check here could not know that size. */
 static uint64_t resvg_render_pixel_ceiling(void)

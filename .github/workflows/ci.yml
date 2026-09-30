@@ -55,7 +55,14 @@ jobs:
           php -l resvg.stub.php
           vendor/bin/phpcs
           vendor/bin/phpstan analyse --memory-limit=512M
-          clang-format-14 --dry-run --Werror ./*.c ./*.h
+          find . -maxdepth 1 -type f \( -name '*.c' -o -name '*.h' \) ! -name resvg_arginfo.h -print0 | xargs -0 -r clang-format-14 --dry-run --Werror
+
+      - name: Verify resvg_arginfo.h matches resvg.stub.php (arginfo drift gate)
+        shell: bash
+        run: |
+          set -euo pipefail
+          php tools/gen_stub.php resvg.stub.php
+          git diff --exit-code resvg_arginfo.h
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@1.98.1
@@ -124,9 +131,7 @@ jobs:
         run: php tools/test-phpt.php build/resvg-php${{ matrix.php }}.so
 
       - name: Run the examples
-        run: |
-          php -n -d extension=build/resvg-php${{ matrix.php }}.so examples/basic-render.php
-          php -n -d extension=build/resvg-php${{ matrix.php }}.so examples/fonts-and-batch.php
+        run: tools/test-examples.sh build/resvg-php${{ matrix.php }}.so
 
       - name: Record artifact provenance
         shell: bash
@@ -148,3 +153,43 @@ jobs:
             build/resvg-php${{ matrix.php }}.provenance
           if-no-files-found: error
           retention-days: 3
+
+  memory:
+    name: Valgrind memory gate (PHP 8.3)
+    needs: [build]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: '8.3'
+          tools: none
+          coverage: none
+          extensions: pcntl
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.98.1
+
+      - name: Fetch the pinned resvg source
+        run: tools/fetch-resvg.sh
+
+      - name: Restore Rust dependency cache
+        uses: Swatinem/rust-cache@v2.9.2
+        with:
+          shared-key: resvg-build
+          add-job-id-key: false
+          workspaces: |
+            native
+            vendor-src/resvg-0.48.1
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y curl binutils valgrind
+
+      - name: Build the extension and run the fidelity gate
+        run: PHP_VERSION=8.3 tools/build.sh 8.3
+
+      - name: Run the Valgrind memory gate
+        run: tools/test-memory.sh build/resvg-php8.3.so

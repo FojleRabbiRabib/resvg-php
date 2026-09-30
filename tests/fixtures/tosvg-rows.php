@@ -29,9 +29,9 @@ $fileDefaults = [
     'writer.svg' => ['ctor' => $pinnedText, 'cli' => $cliText],
 ];
 
-/* The writer surface, one field at a time, plus the §10.4 boundary rows: the two
- * precision ranges at 2 and 8, and each indent field across its whole accepted
- * set (`none`, `0`–`4`, `tabs`). */
+/* The writer surface, one field at a time, plus the writer boundary rows: the
+ * two precision ranges at 2 and 8, and each indent field across its whole
+ * accepted set (`none`, `0`–`4`, `tabs`). */
 $rows = [
     ['name' => 'default', 'toSvg' => [], 'cli' => []],
     ['name' => 'preserve-text', 'toSvg' => ['preserveText' => true], 'cli' => ['--preserve-text']],

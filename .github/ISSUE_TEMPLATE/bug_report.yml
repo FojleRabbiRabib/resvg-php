@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a rendering defect, crash, or unexpected behavior
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue.
+        For security vulnerabilities, please use private vulnerability reporting
+        per [.github/SECURITY.md](.github/SECURITY.md) instead of this form.
+
+  - type: input
+    id: version
+    attributes:
+      label: resvg-php version
+      description: The output of `Resvg\Renderer::version()`.
+      placeholder: e.g. 0.1.0+resvg.0.48.1
+    validations:
+      required: true
+
+  - type: input
+    id: php_version
+    attributes:
+      label: PHP version and architecture
+      description: The output of `php -v`.
+      placeholder: "e.g. PHP 8.3.16 (cli), x86_64 Linux"
+    validations:
+      required: true
+
+  - type: textarea
+    id: svg
+    attributes:
+      label: Minimal reproducing SVG
+      description: The smallest SVG document that demonstrates the issue.
+      render: xml
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: PHP reproducing code
+      description: Minimal PHP script demonstrating the issue.
+      render: php
+      placeholder: |
+        <?php
+        $renderer = new Resvg\Renderer();
+        $png = $renderer->render($svg);
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior vs actual behavior
+      description: What did you expect to happen, and what happened instead? Include stack traces or exception messages if any.
+    validations:
+      required: true
+
+  - type: textarea
+    id: upstream_cli
+    attributes:
+      label: Upstream resvg CLI comparison (if tested)
+      description: Does the same document reproduce with the official `resvg` CLI binary? (Helps distinguish renderer bugs from extension integration issues.)
