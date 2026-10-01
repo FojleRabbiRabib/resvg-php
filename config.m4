@@ -12,12 +12,6 @@ PHP_ARG_ENABLE([resvg],
     [Enable resvg (SVG rasterization on a vendored resvg core)])],
   [no])
 
-PHP_ARG_ENABLE([resvg-offline],
-  [whether to build the resvg extension without network access],
-  [AS_HELP_STRING([--enable-resvg-offline],
-    [Resolve Rust crates from native/vendor-crates instead of crates.io])],
-  [no])
-
 if test "$PHP_RESVG" != "no"; then
 
   dnl Toolchain check. resvg 0.48.x is edition 2024 (MSRV 1.85); refuse a
@@ -83,10 +77,13 @@ if test "$PHP_RESVG" != "no"; then
 
   dnl _FORTIFY_SOURCE=3 where the toolchain supports it, =2 otherwise. The -U is
   dnl required: distro GCC predefines it, and redefining to a different value is a
-  dnl diagnostic on its own.
+  dnl diagnostic on its own. The probe compiles with -Werror because some libc
+  dnl headers merely #warning about the higher level (glibc 2.28 among them);
+  dnl the extension builds with -Werror, so a warning-level rejection must be
+  dnl detected here rather than discovered as a hard build failure.
   AC_MSG_CHECKING([whether the C toolchain supports _FORTIFY_SOURCE=3])
   resvg_save_CFLAGS="$CFLAGS"
-  CFLAGS="$CFLAGS -O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3"
+  CFLAGS="$CFLAGS -Werror -O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3"
   AC_COMPILE_IFELSE(
     [AC_LANG_PROGRAM([[#include <string.h>]],
       [[char b[16]; strcpy(b, "abc"); return (int)strlen(b);]])],
@@ -124,13 +121,14 @@ if test "$PHP_RESVG" != "no"; then
 
   dnl Offline mode: crates resolve from native/vendor-crates (created by
   dnl tools/vendor-offline.sh) and cargo runs --frozen so it fails loudly
-  dnl rather than reaching for the network.
+  dnl rather than reaching for the network. Resolved by the vendor directory's
+  dnl presence rather than a configure flag, so every phpize variant agrees and
+  dnl the offline source bundle — which ships that directory — builds offline
+  dnl with no extra arguments.
   RESVG_CARGO_FLAGS="--locked"
-  if test "$PHP_RESVG_OFFLINE" != "no"; then
+  if test -d "$RESVG_NATIVE_DIR/vendor-crates"; then
     RESVG_CARGO_FLAGS="--frozen"
-    if test ! -d "$RESVG_NATIVE_DIR/vendor-crates"; then
-      AC_MSG_ERROR([offline build requested but $RESVG_NATIVE_DIR/vendor-crates is absent; create it with tools/vendor-offline.sh.])
-    fi
+    AC_MSG_NOTICE([resvg: vendored crates present; cargo runs --frozen])
   fi
 
   dnl Link hardening and the export map, so the canonical link hides the

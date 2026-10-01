@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build PHP ${{ matrix.php }} (${{ matrix.arch }})
+    name: Build PHP ${{ matrix.php }} (${{ matrix.arch }}, glibc)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -38,37 +38,31 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7.0.1
 
-      - name: Set up PHP ${{ matrix.php }}
-        uses: shivammathur/setup-php@2.37.2
-        with:
-          php-version: ${{ matrix.php }}
-          tools: none
-          coverage: none
-          extensions: pcntl
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@1.98.1
-
-      - name: Fetch the pinned resvg source
-        run: tools/fetch-resvg.sh
-
       - name: Restore Rust dependency cache
         uses: Swatinem/rust-cache@v2.9.2
         with:
-          shared-key: resvg-build-${{ matrix.arch }}
+          shared-key: resvg-build-el8-${{ matrix.arch }}
           add-job-id-key: false
           workspaces: |
             native
             vendor-src/resvg-0.48.1
 
-      - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y zip
-
-      - name: Build, gate, and package PHP ${{ matrix.php }}
+      # glibc artifacts build on AlmaLinux 8 (glibc 2.28) so the prebuilts load
+      # across RHEL/Alma/Rocky 8, Debian 10+, Ubuntu 20.04+, and Amazon Linux
+      # 2023. GLIBC_FLOOR makes the imported-symbol ceiling a hard gate.
+      - name: Build, gate, and package PHP ${{ matrix.php }} (glibc 2.28)
         env:
-          ABIS: ${{ matrix.php }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: tools/release-build.sh
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD":/src -w /src \
+            -e ABIS=${{ matrix.php }} -e RELEASE_TAG="$RELEASE_TAG" -e GLIBC_FLOOR=2.28 \
+            -e GIT_REV="$GITHUB_SHA" \
+            almalinux:8 bash -c '
+              set -eu
+              tools/build-el8.sh ${{ matrix.php }}
+              ABIS=${{ matrix.php }} RELEASE_TAG="$RELEASE_TAG" GLIBC_FLOOR=2.28 tools/release-build.sh
+            '
 
       - name: Upload release assets
         uses: actions/upload-artifact@v7.0.1

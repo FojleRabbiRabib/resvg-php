@@ -172,7 +172,13 @@ for php_ver in "${ABIS[@]}"; do
 	PHP_API="$(awk '$1 == "#define" && $2 == "ZEND_MODULE_API_NO" { print $3; exit }' \
 		"$PHP_INC/Zend/zend_modules.h" 2>/dev/null || echo "unknown")"
 	SO_SHA="$(calc_sha256 "$SRC_SO")"
-	GIT_REV="$(git rev-parse HEAD 2>/dev/null || echo "unknown")"
+	# Containers mount the work tree under a different owner, so git refuses to
+	# read it ("dubious ownership") and the revision would silently degrade to
+	# `unknown`; callers that know it (CI passes the commit SHA) set GIT_REV.
+	GIT_REV="${GIT_REV:-$(git rev-parse HEAD 2>/dev/null || echo "unknown")}"
+	# The measured floor travels with the artifact: the highest glibc symbol
+	# version any dynamic dependency is bound to.
+	GLIBC_MAX="$(objdump -T "$SRC_SO" 2>/dev/null | grep -oE 'GLIBC_[0-9.]+' | sort -Vu | tail -1 || true)"
 
 	# The provenance file name carries the platform for musl and macOS so the
 	# families cannot collide; glibc Linux keeps the original spelling.
@@ -190,6 +196,7 @@ for php_ver in "${ABIS[@]}"; do
 	arch=$ARCH
 	os=$OS_SEG
 	libc=$LIBC
+	glibc_symbol=${GLIBC_MAX:-none}
 	commit=$GIT_REV
 	sha256=$SO_SHA
 	EOF
