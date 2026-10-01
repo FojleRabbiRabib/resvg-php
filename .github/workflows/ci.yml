@@ -95,7 +95,7 @@ jobs:
           rm -rf native/vendor-crates native/.cargo
 
   build:
-    name: Build and gate PHP ${{ matrix.php }} (${{ matrix.arch }})
+    name: Build and gate PHP ${{ matrix.php }} (${{ matrix.arch }}, glibc)
     needs: [quality]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -124,52 +124,32 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7.0.1
 
-      - name: Set up PHP ${{ matrix.php }}
-        uses: shivammathur/setup-php@2.37.2
-        with:
-          php-version: ${{ matrix.php }}
-          tools: none
-          coverage: none
-          extensions: pcntl
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@1.98.1
-
-      - name: Fetch the pinned resvg source
-        run: tools/fetch-resvg.sh
-
       - name: Restore Rust dependency cache
         uses: Swatinem/rust-cache@v2.9.2
         with:
-          shared-key: resvg-build-${{ matrix.arch }}
+          shared-key: resvg-build-el8-${{ matrix.arch }}
           add-job-id-key: false
           workspaces: |
             native
             vendor-src/resvg-0.48.1
 
-      - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y curl binutils
-
-      - name: Build the extension and run the fidelity gate
-        run: PHP_VERSION=${{ matrix.php }} tools/build.sh ${{ matrix.php }}
-
-      - name: Run the test suite
-        run: php tools/test-phpt.php build/resvg-php${{ matrix.php }}.so
-
-      - name: Run the examples
-        run: tools/test-examples.sh build/resvg-php${{ matrix.php }}.so
-
-      - name: Record artifact provenance
-        shell: bash
+      # The glibc release artifacts are built on AlmaLinux 8 (glibc 2.28 floor);
+      # CI builds in the identical environment so it tests what ships.
+      - name: Build and gate inside almalinux:8
         run: |
           set -euo pipefail
-          artifact=build/resvg-php${{ matrix.php }}.so
-          sha256="$(sha256sum "$artifact" | awk '{print $1}')"
-          api="$(php-config${{ matrix.php }} --phpapi)"
-          arch="$(uname -m)"
-          printf 'commit=%s\nrun_id=%s\nphp=%s\nphp_api=%s\narch=%s\nsha256=%s\n' \
-            "$GITHUB_SHA" "$GITHUB_RUN_ID" "${{ matrix.php }}" "$api" "$arch" "$sha256" \
-            > "build/resvg-php${{ matrix.php }}-${{ matrix.arch }}.provenance"
+          docker run --rm -v "$PWD":/src -w /src \
+            -e GITHUB_SHA -e GITHUB_RUN_ID \
+            almalinux:8 bash -c '
+              set -eu
+              tools/build-el8.sh ${{ matrix.php }}
+              sha256="$(sha256sum build/resvg-php${{ matrix.php }}.so | awk "{print \$1}")"
+              api="$(awk "\$1 == \"#define\" && \$2 == \"ZEND_MODULE_API_NO\" { print \$3; exit }" \
+                "$(php-config --include-dir)/Zend/zend_modules.h")"
+              printf "commit=%s\nrun_id=%s\nphp=%s\nphp_api=%s\narch=%s\nsha256=%s\n" \
+                "$GITHUB_SHA" "$GITHUB_RUN_ID" "${{ matrix.php }}" "$api" "$(uname -m)" "$sha256" \
+                > "build/resvg-php${{ matrix.php }}-${{ matrix.arch }}.provenance"
+            '
 
       - name: Upload tested artifact
         uses: actions/upload-artifact@v7.0.1
@@ -307,34 +287,21 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7.0.1
 
-      - name: Set up PHP 8.3
-        uses: shivammathur/setup-php@2.37.2
-        with:
-          php-version: '8.3'
-          tools: none
-          coverage: none
-          extensions: pcntl
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@1.98.1
-
-      - name: Fetch the pinned resvg source
-        run: tools/fetch-resvg.sh
-
       - name: Restore Rust dependency cache
         uses: Swatinem/rust-cache@v2.9.2
         with:
-          shared-key: resvg-build-x86_64
+          shared-key: resvg-build-el8-x86_64
           add-job-id-key: false
           workspaces: |
             native
             vendor-src/resvg-0.48.1
 
-      - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y curl binutils valgrind
-
-      - name: Build the extension and run the fidelity gate
-        run: PHP_VERSION=8.3 tools/build.sh 8.3
-
-      - name: Run the Valgrind memory gate
-        run: tools/test-memory.sh build/resvg-php8.3.so
+      - name: Build and run the Valgrind memory gate inside almalinux:8
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD":/src -w /src almalinux:8 bash -c '
+            set -eu
+            tools/build-el8.sh 8.3
+            dnf -q install -y valgrind >/dev/null
+            tools/test-memory.sh build/resvg-php8.3.so
+          '

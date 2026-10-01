@@ -63,13 +63,15 @@ php -m | grep resvg
 php -r 'echo Resvg\Renderer::version(), PHP_EOL;'
 ```
 
-The extension is a single self-contained `.so` — it has no runtime dependency beyond
-the C library (glibc or musl; PIE resolves the matching archive automatically). On
-minimal Alpine containers where no fonts are pre-installed, install `ttf-dejavu`
-(or supply custom fonts via `fontFiles`) so text is rendered.
-(the floor is the build host's glibc; the release provenance records the highest
-imported symbol version), and it must match your PHP major.minor ABI exactly (a
-build for 8.3 refuses to load under 8.4 and vice versa).
+The extension is a single self-contained `.so`: it has no runtime dependency
+beyond the C library (glibc 2.28 or newer for the glibc builds, any musl for the
+Alpine ones; PIE resolves the matching archive automatically), and it must match
+your PHP major.minor ABI exactly (a build for 8.3 refuses to load under 8.4 and
+vice versa). The glibc floor is the glibc of the host that built the artifact —
+2.28 for current prebuilts — and each release provenance record names the highest
+imported symbol version. On minimal Alpine containers where no fonts are
+pre-installed, install `ttf-dejavu` (or supply custom fonts via `fontFiles`) so
+text is rendered.
 
 ## From source
 
@@ -114,9 +116,9 @@ OFFLINE=1 tools/build.sh 8.3
 
 `OFFLINE=1` skips the download step, verifies the vendored source against its
 recorded SHA-256 marker, and runs cargo with `--frozen`, which fails loudly if
-any crate were missing from the bundle. The same switch drives the canonical
-`phpize` path: `./configure --enable-resvg --enable-resvg-offline` resolves
-crates from `native/vendor-crates` instead of the network.
+any crate were missing from the bundle. The canonical `phpize` path needs no
+special flag: `configure` detects the shipped `native/vendor-crates` directory
+and resolves every crate from it, running cargo frozen.
 
 ## Fidelity gate
 
