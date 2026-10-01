@@ -22,9 +22,12 @@ wrapping `resvg.so`), a bare `resvg-php8.N-linux-<arch>.so` for direct download,
 sha256sum -c SHA256SUMS
 cosign verify-blob --bundle resvg-php8.3-linux-x86_64.so.bundle \
     resvg-php8.3-linux-x86_64.so
-# or on aarch64:
+# on aarch64:
 cosign verify-blob --bundle resvg-php8.3-linux-aarch64.so.bundle \
     resvg-php8.3-linux-aarch64.so
+# on Alpine / musl:
+cosign verify-blob --bundle resvg-php8.3-linux-musl-x86_64.so.bundle \
+    resvg-php8.3-linux-musl-x86_64.so
 ```
 
 Then point PHP at the extension:
@@ -33,6 +36,7 @@ Then point PHP at the extension:
 ; php.ini
 extension=/opt/resvg-php/resvg-php8.3-linux-x86_64.so
 ; or /opt/resvg-php/resvg-php8.3-linux-aarch64.so on aarch64
+; or /opt/resvg-php/resvg-php8.3-linux-musl-x86_64.so on Alpine (musl)
 ```
 
 Verify:
@@ -42,7 +46,10 @@ php -m | grep resvg
 php -r 'echo Resvg\Renderer::version(), PHP_EOL;'
 ```
 
-The extension is a single self-contained `.so` — it has no dependency beyond glibc
+The extension is a single self-contained `.so` — it has no runtime dependency beyond
+the C library (glibc or musl; PIE resolves the matching archive automatically). On
+minimal Alpine containers where no fonts are pre-installed, install `ttf-dejavu`
+(or supply custom fonts via `fontFiles`) so text is rendered.
 (the floor is the build host's glibc; the release provenance records the highest
 imported symbol version), and it must match your PHP major.minor ABI exactly (a
 build for 8.3 refuses to load under 8.4 and vice versa).

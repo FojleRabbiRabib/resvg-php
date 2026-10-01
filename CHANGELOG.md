@@ -11,6 +11,23 @@ Semantic Versioning.
 - Linux aarch64 (glibc) as a supported platform on par with x86-64: CI builds
   and gates all three PHP ABIs natively on arm64 runners, and releases carry
   aarch64 PIE archives and bare `.so` assets alongside x86-64.
+- Alpine Linux (musl) as a supported platform: a CI job builds and gates the
+  extension inside the official `php:8.3-alpine` image, and releases carry
+  musl PIE archives and bare `.so` assets for all three PHP ABIs on both
+  x86-64 and aarch64. On fontless Alpine containers, install `ttf-dejavu` or
+  supply fonts via `fontFiles` so text renders.
+
+### Changed
+
+- The Zend ABI check in the build driver reads the module API number from the
+  installed headers instead of `php-config --phpapi`, which the official
+  Docker PHP images do not implement; source builds inside those images now
+  work.
+
+### Fixed
+
+- The ELF dependency gate strips readelf brackets with a POSIX-portable
+  pattern, so builds on Alpine (BusyBox awk) validate correctly.
 
 ### Fixed
 

@@ -173,6 +173,45 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  build-musl:
+    name: Build and gate PHP 8.3 (musl x86_64)
+    needs: [quality]
+    runs-on: ubuntu-22.04
+    container:
+      image: php:8.3-alpine
+    steps:
+      - name: Install build dependencies
+        run: apk add --no-cache bash gcc make musl-dev binutils autoconf curl git ca-certificates ttf-dejavu
+
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Install Rust
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98.1
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch the pinned resvg source
+        run: tools/fetch-resvg.sh
+
+      - name: Restore Rust dependency cache
+        uses: Swatinem/rust-cache@v2.9.2
+        with:
+          shared-key: resvg-build-musl-x86_64
+          add-job-id-key: false
+          workspaces: |
+            native
+            vendor-src/resvg-0.48.1
+
+      - name: Build the extension and run the fidelity gate
+        run: tools/build.sh 8.3
+
+      - name: Run the test suite
+        run: php tools/test-phpt.php build/resvg-php8.3.so
+
+      - name: Run the examples
+        run: tools/test-examples.sh build/resvg-php8.3.so
+
   memory:
     name: Valgrind memory gate (PHP 8.3)
     needs: [build]

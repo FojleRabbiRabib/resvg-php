@@ -73,7 +73,11 @@ verify_php_toolchain() {
 		echo "FAIL: PHP_VERSION=$PHPV selected $PHP_BIN_PATH ($actual_version)" >&2
 		exit 1
 	}
-	config_api="$("$PHP_CONFIG_BIN_PATH" --phpapi)"
+	# The Zend API number comes from the installed headers rather than
+	# `php-config --phpapi`, which some builds (the official Docker images among
+	# them) do not implement; the header exists wherever an extension can build.
+	config_api="$(awk '$1 == "#define" && $2 == "ZEND_MODULE_API_NO" { print $3; exit }' \
+		"$("$PHP_CONFIG_BIN_PATH" --include-dir)/Zend/zend_modules.h" 2>/dev/null)"
 	cli_api="$("$PHP_BIN_PATH" -i | awk -F'=> ' '/^PHP API / {value=$2} END {print value}')"
 	phpize_api="$("$PHPIZE_BIN_PATH" --version | awk -F': *' '/Zend Module Api No/ {print $2; exit}')"
 	if [ -z "$config_api" ] || [ "$config_api" != "$cli_api" ] || [ "$config_api" != "$phpize_api" ]; then
@@ -97,14 +101,18 @@ assert_elf() {
 		exit 1
 	fi
 
-	needed="$(readelf -d "$OUT" | awk '/NEEDED/{gsub(/[\[\]]/, "", $NF); print $NF}')"
+	# POSIX-portable bracket stripping: `]` must come first in the set; the
+	# backslash-escaped spelling is undefined for BusyBox awk (Alpine).
+	needed="$(readelf -d "$OUT" | awk '/NEEDED/{gsub(/[][]/, "", $NF); print $NF}')"
 	echo "   NEEDED: ${needed//$'\n'/ }"
 	while IFS= read -r library; do
 		[ -z "$library" ] && continue
 		case "$library" in
 			# The glibc dynamic loader's soname is arch-specific (ld-linux-x86-64.so.2
-			# on x86-64, ld-linux-aarch64.so.1 on aarch64); match it by pattern.
+			# on x86-64, ld-linux-aarch64.so.1 on aarch64); match it by pattern. musl
+			# (Alpine) merges libc and the loader into libc.musl-*.so.* / ld-musl-*.
 			libc.so.6|libm.so.6|libpthread.so.0|libdl.so.2|ld-linux-*.so.*|libgcc_s.so.1) ;;
+			libc.musl-*.so.*|ld-musl-*.so.*) ;;
 			*) echo "FAIL: unexpected dynamic dependency: $library" >&2; exit 1 ;;
 		esac
 	done <<< "$needed"

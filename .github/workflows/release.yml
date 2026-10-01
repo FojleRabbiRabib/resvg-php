@@ -78,9 +78,77 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  build-musl:
+    name: Build PHP ${{ matrix.php }} musl (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    container:
+      image: php:${{ matrix.php }}-alpine
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.3'
+            arch: x86_64
+            os: ubuntu-22.04
+          - php: '8.4'
+            arch: x86_64
+            os: ubuntu-22.04
+          - php: '8.5'
+            arch: x86_64
+            os: ubuntu-22.04
+          - php: '8.3'
+            arch: aarch64
+            os: ubuntu-22.04-arm
+          - php: '8.4'
+            arch: aarch64
+            os: ubuntu-22.04-arm
+          - php: '8.5'
+            arch: aarch64
+            os: ubuntu-22.04-arm
+    steps:
+      - name: Install build dependencies
+        run: apk add --no-cache bash gcc make musl-dev binutils autoconf curl git ca-certificates zip ttf-dejavu
+
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Install Rust
+        shell: sh
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98.1
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch the pinned resvg source
+        shell: sh
+        run: tools/fetch-resvg.sh
+
+      - name: Restore Rust dependency cache
+        uses: Swatinem/rust-cache@v2.9.2
+        with:
+          shared-key: resvg-build-musl-${{ matrix.arch }}
+          add-job-id-key: false
+          workspaces: |
+            native
+            vendor-src/resvg-0.48.1
+
+      - name: Build, gate, and package PHP ${{ matrix.php }} (musl)
+        shell: sh
+        env:
+          ABIS: ${{ matrix.php }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: tools/release-build.sh
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: release-php${{ matrix.php }}-musl-${{ matrix.arch }}
+          path: build/dist/*
+          if-no-files-found: error
+          retention-days: 3
+
   finalize:
     name: Assemble and publish release
-    needs: [build]
+    needs: [build, build-musl]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
