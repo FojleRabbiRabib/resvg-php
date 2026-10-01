@@ -100,14 +100,11 @@ verify_php_toolchain() {
 assert_macho() {
 	local exports deps library
 
-	# Export isolation: the Mach-O export trie must carry exactly `_get_module`.
-	# `dyld_info -exports` reads the trie directly (immune to stripping); `nm -gU`
-	# is the fallback where dyld_info is absent.
-	if command -v dyld_info >/dev/null 2>&1; then
-		exports="$(dyld_info -exports "$OUT" 2>/dev/null | awk 'NR>2 {print $NF}' | sed '/^$/d' | sort -u)"
-	else
-		exports="$(nm -gU "$OUT" | awk '{print $NF}' | sed '/^$/d' | sort -u)"
-	fi
+	# Export isolation: the Mach-O export table must carry exactly `_get_module`.
+	# `nm -gU` lists external symbols in a stable `<addr> <type> <name>` format,
+	# so the name is the last field; the leading underscore is Mach-O's C
+	# decoration, matching the ELF gate's `get_module`.
+	exports="$(nm -gU "$OUT" | awk 'NF >= 3 {print $NF}' | sed '/^$/d' | sort -u)"
 	echo "   dynamic exports: ${exports//$'\n'/ }"
 	[ "$exports" = "_get_module" ] || {
 		echo "FAIL: dynamic export table must be exactly {_get_module}" >&2
@@ -254,12 +251,17 @@ else
 	# macOS: PHP extensions are Mach-O bundles; ld64 pulls the archive with
 	# -force_load (no --whole-archive) and exports get_module through
 	# resvg.exp. Undefined symbols (the Zend API) resolve dynamically from the
-	# loading process. Ad-hoc signing is mandatory on Apple Silicon —
-	# unsigned code pages refuse to map.
-	cc -bundle -fPIC $STRIP_FLAG -o "$OUT" "$EB"/.libs/*.o \
+	# loading process. `-s` is GNU ld syntax that modern ld64 ignores as
+	# obsolete, so stripping happens with the strip tool afterwards, and the
+	# ad-hoc signature is applied last: stripping invalidates a signature, and
+	# unsigned code pages refuse to map on Apple Silicon.
+	cc -bundle -fPIC -o "$OUT" "$EB"/.libs/*.o \
 		-Wl,-undefined,dynamic_lookup \
 		-Wl,-exported_symbols_list,"$ROOT/resvg.exp" -Wl,-dead_strip -Wl,-bind_at_load \
 		-Wl,-force_load,"$LIB"
+	if [ "$DEBUG" != "1" ]; then
+		strip -x "$OUT"
+	fi
 	codesign -f -s - "$OUT"
 fi
 echo "   built: $OUT ($(du -h "$OUT" | cut -f1))"
