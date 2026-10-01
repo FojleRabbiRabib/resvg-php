@@ -22,6 +22,9 @@ wrapping `resvg.so`), a bare `resvg-php8.N-linux-<arch>.so` for direct download,
 sha256sum -c SHA256SUMS
 cosign verify-blob --bundle resvg-php8.3-linux-x86_64.so.bundle \
     resvg-php8.3-linux-x86_64.so
+# or on aarch64:
+cosign verify-blob --bundle resvg-php8.3-linux-aarch64.so.bundle \
+    resvg-php8.3-linux-aarch64.so
 ```
 
 Then point PHP at the extension:
@@ -29,6 +32,7 @@ Then point PHP at the extension:
 ```ini
 ; php.ini
 extension=/opt/resvg-php/resvg-php8.3-linux-x86_64.so
+; or /opt/resvg-php/resvg-php8.3-linux-aarch64.so on aarch64
 ```
 
 Verify:

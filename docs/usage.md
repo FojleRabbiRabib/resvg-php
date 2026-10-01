@@ -280,6 +280,8 @@ php -n -d extension=build/resvg-php8.3.so tools/benchmark.php \
 ```
 
 A comparison exits non-zero when any case regresses past the threshold (default
-15%). Absolute numbers are host-relative — the ratchet compares like-for-like on
-the same machine, which is why CI does not run it. Record a fresh baseline after
-hardware changes with `--record=tests/benchmark/baseline.json`.
+15%), and refuses to run at all when the baseline was recorded on a different
+architecture — throughput baselines are not comparable across ISAs. Absolute
+numbers are host-relative — the ratchet compares like-for-like on the same
+machine, which is why CI does not run it. Record a fresh baseline after hardware
+changes with `--record=tests/benchmark/baseline.json`.

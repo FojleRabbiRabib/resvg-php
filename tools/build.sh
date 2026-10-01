@@ -102,7 +102,9 @@ assert_elf() {
 	while IFS= read -r library; do
 		[ -z "$library" ] && continue
 		case "$library" in
-			libc.so.6|libm.so.6|libpthread.so.0|libdl.so.2|ld-linux-x86-64.so.2|libgcc_s.so.1) ;;
+			# The glibc dynamic loader's soname is arch-specific (ld-linux-x86-64.so.2
+			# on x86-64, ld-linux-aarch64.so.1 on aarch64); match it by pattern.
+			libc.so.6|libm.so.6|libpthread.so.0|libdl.so.2|ld-linux-*.so.*|libgcc_s.so.1) ;;
 			*) echo "FAIL: unexpected dynamic dependency: $library" >&2; exit 1 ;;
 		esac
 	done <<< "$needed"

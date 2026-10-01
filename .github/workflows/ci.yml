@@ -87,13 +87,31 @@ jobs:
           cargo clippy --manifest-path native/Cargo.toml -- -D warnings
 
   build:
-    name: Build and gate PHP ${{ matrix.php }}
+    name: Build and gate PHP ${{ matrix.php }} (${{ matrix.arch }})
     needs: [quality]
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.3', '8.4', '8.5']
+        include:
+          - php: '8.3'
+            arch: x86_64
+            os: ubuntu-22.04
+          - php: '8.4'
+            arch: x86_64
+            os: ubuntu-22.04
+          - php: '8.5'
+            arch: x86_64
+            os: ubuntu-22.04
+          - php: '8.3'
+            arch: aarch64
+            os: ubuntu-22.04-arm
+          - php: '8.4'
+            arch: aarch64
+            os: ubuntu-22.04-arm
+          - php: '8.5'
+            arch: aarch64
+            os: ubuntu-22.04-arm
     steps:
       - name: Check out source
         uses: actions/checkout@v7.0.1
@@ -115,7 +133,7 @@ jobs:
       - name: Restore Rust dependency cache
         uses: Swatinem/rust-cache@v2.9.2
         with:
-          shared-key: resvg-build
+          shared-key: resvg-build-${{ matrix.arch }}
           add-job-id-key: false
           workspaces: |
             native
@@ -140,17 +158,18 @@ jobs:
           artifact=build/resvg-php${{ matrix.php }}.so
           sha256="$(sha256sum "$artifact" | awk '{print $1}')"
           api="$(php-config${{ matrix.php }} --phpapi)"
-          printf 'commit=%s\nrun_id=%s\nphp=%s\nphp_api=%s\nsha256=%s\n' \
-            "$GITHUB_SHA" "$GITHUB_RUN_ID" "${{ matrix.php }}" "$api" "$sha256" \
-            > "build/resvg-php${{ matrix.php }}.provenance"
+          arch="$(uname -m)"
+          printf 'commit=%s\nrun_id=%s\nphp=%s\nphp_api=%s\narch=%s\nsha256=%s\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_ID" "${{ matrix.php }}" "$api" "$arch" "$sha256" \
+            > "build/resvg-php${{ matrix.php }}-${{ matrix.arch }}.provenance"
 
       - name: Upload tested artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: resvg-tested-php${{ matrix.php }}
+          name: resvg-tested-php${{ matrix.php }}-${{ matrix.arch }}
           path: |
             build/resvg-php${{ matrix.php }}.so
-            build/resvg-php${{ matrix.php }}.provenance
+            build/resvg-php${{ matrix.php }}-${{ matrix.arch }}.provenance
           if-no-files-found: error
           retention-days: 3
 
@@ -179,7 +198,7 @@ jobs:
       - name: Restore Rust dependency cache
         uses: Swatinem/rust-cache@v2.9.2
         with:
-          shared-key: resvg-build
+          shared-key: resvg-build-x86_64
           add-job-id-key: false
           workspaces: |
             native

@@ -6,7 +6,11 @@ Semantic Versioning.
 
 ## [Unreleased]
 
-## [0.1.1] - 2026-10-01
+### Added
+
+- Linux aarch64 (glibc) as a supported platform on par with x86-64: CI builds
+  and gates all three PHP ABIs natively on arm64 runners, and releases carry
+  aarch64 PIE archives and bare `.so` assets alongside x86-64.
 
 ### Fixed
 

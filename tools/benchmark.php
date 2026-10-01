@@ -86,6 +86,7 @@ echo "========================================================================\n
 $results = [
     'version' => Resvg\Renderer::version(),
     'php_version' => PHP_VERSION,
+    'arch' => php_uname('m'),
     'timestamp' => date('c'),
     'iterations' => $iterations,
     'cases' => [],
@@ -176,6 +177,24 @@ if ($compareFile !== null) {
     $baseline = json_decode($raw, true);
     if (!is_array($baseline) || !isset($baseline['cases']) || !is_array($baseline['cases'])) {
         fwrite(STDERR, "benchmark: invalid baseline format in $compareFile\n");
+        exit(1);
+    }
+
+    $baseArch = isset($baseline['arch']) && is_string($baseline['arch']) ? $baseline['arch'] : null;
+    $currArch = php_uname('m');
+    if ($baseArch === null) {
+        fwrite(STDERR, "benchmark: baseline records no arch; re-record it with this benchmark version\n");
+        exit(1);
+    }
+    if ($baseArch !== $currArch) {
+        fwrite(
+            STDERR,
+            sprintf(
+                "benchmark: refusing cross-architecture comparison (baseline is %s, current host is %s)\n",
+                $baseArch,
+                $currArch,
+            ),
+        );
         exit(1);
     }
 
