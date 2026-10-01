@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 4ae32df0235a72c4d7bd13770ad532cdab99e3a9 */
+ * Stub hash: 3e057ed0445c489a3d189eb69da1fba4c7f7d586 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Resvg_Renderer___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, options, IS_ARRAY, 0, "[]")

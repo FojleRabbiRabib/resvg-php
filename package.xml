@@ -22,8 +22,8 @@ resource confinement for untrusted input.</description>
  <date>2026-10-01</date>
  <time>12:00:00</time>
  <version>
-  <release>0.1.1</release>
-  <api>0.1.0</api>
+  <release>0.2.0</release>
+  <api>0.2.0</api>
  </version>
  <stability>
   <release>devel</release>
@@ -31,10 +31,10 @@ resource confinement for untrusted input.</description>
  </stability>
  <license uri="https://www.apache.org/licenses/LICENSE-2.0">Apache-2.0</license>
  <notes>
-Fixes PIE prebuilt-binary resolution: the download-url-method declaration
-moved into the php-ext composer metadata where the installer reads it, and
-release archives are additionally published under the full tag version name
-PIE resolves.
+New platform reach: Linux aarch64 (glibc), Alpine Linux (musl), and macOS
+(arm64 and x86-64) join x86-64 Linux as gated, prebuilt platforms, with
+thread-safe (ZTS) builds validated alongside NTS. PIE resolution is hardened
+across architecture, OS, libc, and thread-safety segments.
  </notes>
  <contents>
   <dir name="/">

@@ -13,7 +13,7 @@
 #      ABIS (space-separated subset, default: "8.3 8.4 8.5"),
 #      LIBC (glibc | musl | bsdlibc; default: detected from the build host),
 #      TS (nts | zts; default: nts — PIE matches the thread-safety segment),
-#      RELEASE_TAG (optional, e.g. v0.1.0+resvg.0.48.1 — PIE resolves packages by the
+#      RELEASE_TAG (optional, e.g. v0.2.0 — PIE resolves packages by the
 #      full tag version, so archives are additionally published under that name).
 set -euo pipefail
 
@@ -136,7 +136,7 @@ for php_ver in "${ABIS[@]}"; do
 	fi
 
 	# PIE resolves the package by the tag's full version (pretty version, e.g.
-	# v0.1.0+resvg.0.48.1), so publish the identical archive under that name too;
+	# v0.2.0), so publish the identical archive under that name too;
 	# PIE lowercases its expectation, so the alternate name is lowercased to match
 	# under either strict or case-folded comparison.
 	if [ -n "${RELEASE_TAG:-}" ]; then

@@ -220,7 +220,7 @@ See [`docs/security.md`](docs/security.md) for the full threat model.
 ### Version
 
 ```php
-Resvg\Renderer::version();   // "0.1.0+resvg.0.48.1"
+Resvg\Renderer::version();   // "0.2.0+resvg.0.48.1"
 ```
 
 ## Options reference

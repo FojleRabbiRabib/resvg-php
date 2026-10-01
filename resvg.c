@@ -75,7 +75,7 @@ PHP_MINFO_FUNCTION(resvg)
 	snprintf(default_font, sizeof(default_font), "%s @ %d", RESVG_DEFAULT_FONT_FAMILY,
 			 (int)RESVG_DEFAULT_FONT_SIZE);
 
-	/* The shim reports the composite `0.1.0+resvg.0.48.1`; the pin is the part
+	/* The shim reports the composite `0.2.0+resvg.0.48.1`; the pin is the part
 	 * after the marker, so this row tracks the vendored source with no second
 	 * constant to keep in lockstep. */
 	const char *composite = resvg_php_version();

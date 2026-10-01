@@ -6,6 +6,8 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-01
+
 ### Added
 
 - Linux aarch64 (glibc) as a supported platform on par with x86-64: CI builds
@@ -48,6 +50,8 @@ Semantic Versioning.
 - Checksum tooling falls back to `shasum -a 256` where `sha256sum` is absent,
   and build parallelism uses `sysctl -n hw.ncpu` where `nproc` is absent, so
   the build driver runs on macOS.
+
+## [0.1.1] - 2026-10-01
 
 ### Fixed
 

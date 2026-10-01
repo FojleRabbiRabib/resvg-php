@@ -243,7 +243,6 @@ jobs:
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
           base="${tag#v}"
-          base="${base%%+*}"
           ext_version="$(awk -F'"' '/#define PHP_RESVG_VERSION/ {print $2}' php_resvg.h)"
           if [ "$base" != "$ext_version" ]; then
             echo "FAIL: tag $tag base version '$base' != PHP_RESVG_VERSION '$ext_version'" >&2

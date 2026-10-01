@@ -98,7 +98,7 @@ namespace Resvg
         {
         }
 
-        /** The extension version plus the vendored resvg pin, e.g. "0.1.0+resvg.0.48.1". */
+        /** The extension version plus the vendored resvg pin, e.g. "0.2.0+resvg.0.48.1". */
         public static function version(): string
         {
         }

@@ -212,7 +212,7 @@ rasterizing. Accepts `width`, `height`, and `zoom` only — the raster-only opti
 ## `version()`
 
 ```php
-Resvg\Renderer::version();  // "0.1.0+resvg.0.48.1"
+Resvg\Renderer::version();  // "0.2.0+resvg.0.48.1"
 ```
 
 The extension version plus the vendored resvg version. Include it in bug reports.

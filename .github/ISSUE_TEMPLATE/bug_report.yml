@@ -14,7 +14,7 @@ body:
     attributes:
       label: resvg-php version
       description: The output of `Resvg\Renderer::version()`.
-      placeholder: e.g. 0.1.0+resvg.0.48.1
+      placeholder: e.g. 0.2.0+resvg.0.48.1
     validations:
       required: true
 
