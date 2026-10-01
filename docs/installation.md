@@ -40,12 +40,14 @@ Then point PHP at the extension:
 extension=/opt/resvg-php/resvg-php8.3-linux-x86_64.so
 ; or /opt/resvg-php/resvg-php8.3-linux-aarch64.so on aarch64
 ; or /opt/resvg-php/resvg-php8.3-linux-musl-x86_64.so on Alpine (musl)
-; or /opt/resvg-php/resvg-php8.3-darwin-arm64.so on macOS
+; or /opt/resvg-php/resvg-php8.3-darwin-arm64.so on macOS (Apple silicon)
 ```
 
 The macOS builds are ad-hoc signed Mach-O bundles; `shasum -c SHA256SUMS`
 verifies them (macOS ships `shasum` rather than `sha256sum`). PIE resolves
-macOS installs from the `-darwin-bsdlibc-` archives automatically.
+macOS installs from the `-darwin-bsdlibc-` archives automatically. Prebuilt
+macOS assets target Apple silicon; on Intel Macs, PIE's source-build fallback
+works (Homebrew PHP plus Rust 1.85+).
 
 A `.so` is ABI-bound to its PHP build's thread safety: an NTS extension will not
 load under a thread-safe PHP, and vice versa. PIE selects the matching archive
@@ -94,6 +96,27 @@ The build:
 
 The artifact is written to `build/resvg-php<version>.so`. `DEBUG=1 tools/build.sh`
 produces an unstripped build for debugging.
+
+### Offline / air-gapped builds
+
+A source build normally resolves Rust dependencies from crates.io at build time.
+To build with no network access — or inside a sealed packaging environment —
+use the offline source bundle attached to each release
+(`resvg-php-<version>-offline.tar.gz`). It packs the repository tree, the
+verified resvg source, and every vendored crate; extract it and build with
+`OFFLINE=1`:
+
+```sh
+tar xzf resvg-php-0.2.0-offline.tar.gz
+cd resvg-php-0.2.0-offline
+OFFLINE=1 tools/build.sh 8.3
+```
+
+`OFFLINE=1` skips the download step, verifies the vendored source against its
+recorded SHA-256 marker, and runs cargo with `--frozen`, which fails loudly if
+any crate were missing from the bundle. The same switch drives the canonical
+`phpize` path: `./configure --enable-resvg --enable-resvg-offline` resolves
+crates from `native/vendor-crates` instead of the network.
 
 ## Fidelity gate
 

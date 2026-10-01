@@ -17,6 +17,7 @@ export RESVG_VERSION RESVG_SHA256
 PHPV="${1:-${PHP_VERSION:-8.3}}"
 DEBUG="${DEBUG:-0}"
 SKIP_GATE="${SKIP_GATE:-0}"
+OFFLINE="${OFFLINE:-0}"
 
 case "$PHPV" in
 	8.3|8.4|8.5) ;;
@@ -24,6 +25,16 @@ case "$PHPV" in
 esac
 case "$DEBUG" in 0|1) ;; *) echo "FAIL: DEBUG must be 0 or 1" >&2; exit 2 ;; esac
 case "$SKIP_GATE" in 0|1) ;; *) echo "FAIL: SKIP_GATE must be 0 or 1" >&2; exit 2 ;; esac
+case "$OFFLINE" in 0|1) ;; *) echo "FAIL: OFFLINE must be 0 or 1" >&2; exit 2 ;; esac
+
+# Offline builds resolve every crate from native/vendor-crates (see
+# tools/vendor-offline.sh) and the pinned source from vendor-src/; cargo's
+# --frozen fails loudly instead of reaching for the network.
+if [ "$OFFLINE" = "1" ]; then
+	CARGO_FLAGS="--frozen"
+else
+	CARGO_FLAGS="--locked"
+fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 B="$ROOT/build"
@@ -197,8 +208,29 @@ verify_loadable() {
 verify_php_toolchain
 
 echo ">> [1/5] fetch and verify resvg v$RESVG_VERSION"
-"$ROOT/tools/fetch-resvg.sh" >/dev/null
-echo "   resvg $RESVG_VERSION SHA256 OK"
+if [ "$OFFLINE" = "1" ]; then
+	[ -d "$ROOT/vendor-src/resvg-$RESVG_VERSION/crates/resvg" ] || {
+		echo "FAIL: OFFLINE=1 but vendor-src/resvg-$RESVG_VERSION is absent." >&2
+		echo "      Offline builds need the pinned source present; use an offline bundle" >&2
+		echo "      (tools/vendor-offline.sh --tarball) or pre-fetch it." >&2
+		exit 1
+	}
+	# fetch-resvg.sh writes the verification marker only after its SHA-256
+	# check passes, so an offline tree still proves its source matches the pin.
+	marker="$ROOT/vendor-src/resvg-$RESVG_VERSION/.verified-source-sha256"
+	[ -f "$marker" ] || {
+		echo "FAIL: offline source has no verification marker; cannot prove it matches the pin" >&2
+		exit 1
+	}
+	[ "$(cat "$marker")" = "$RESVG_SHA256" ] || {
+		echo "FAIL: offline source verification marker does not match the pinned SHA-256" >&2
+		exit 1
+	}
+	echo "   using pre-fetched resvg $RESVG_VERSION (marker matches pin)"
+else
+	"$ROOT/tools/fetch-resvg.sh" >/dev/null
+	echo "   resvg $RESVG_VERSION SHA256 OK"
+fi
 
 echo ">> [2/5] compile the Rust shim to a static archive"
 # Run cargo with the working directory inside native/, so native/rust-toolchain.toml
@@ -206,10 +238,10 @@ echo ">> [2/5] compile the Rust shim to a static archive"
 # CWD) and the release artifact cannot float with the host's `rustup default`.
 # Makefile.frag runs it the same way for the canonical `phpize && make` path.
 if [ "$DEBUG" = "1" ]; then
-	(cd "$ROOT/native" && cargo build --locked)
+	(cd "$ROOT/native" && cargo build $CARGO_FLAGS)
 	LIB="$ROOT/native/target/debug/libresvg_php.a"
 else
-	(cd "$ROOT/native" && cargo build --release --locked)
+	(cd "$ROOT/native" && cargo build --release $CARGO_FLAGS)
 fi
 [ -f "$LIB" ] || { echo "FAIL: $LIB missing" >&2; exit 1; }
 echo "   $(du -h "$LIB" | cut -f1) libresvg_php.a"
