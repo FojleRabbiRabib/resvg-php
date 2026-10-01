@@ -100,9 +100,14 @@ verify_php_toolchain() {
 assert_macho() {
 	local exports deps library
 
-	# nm -gU lists defined external symbols; C names carry the Mach-O
-	# leading underscore. The export isolation must match the ELF gate's.
-	exports="$(nm -gU "$OUT" | awk '{print $NF}' | sed '/^$/d' | sort -u)"
+	# Export isolation: the Mach-O export trie must carry exactly `_get_module`.
+	# `dyld_info -exports` reads the trie directly (immune to stripping); `nm -gU`
+	# is the fallback where dyld_info is absent.
+	if command -v dyld_info >/dev/null 2>&1; then
+		exports="$(dyld_info -exports "$OUT" 2>/dev/null | awk 'NR>2 {print $NF}' | sed '/^$/d' | sort -u)"
+	else
+		exports="$(nm -gU "$OUT" | awk '{print $NF}' | sed '/^$/d' | sort -u)"
+	fi
 	echo "   dynamic exports: ${exports//$'\n'/ }"
 	[ "$exports" = "_get_module" ] || {
 		echo "FAIL: dynamic export table must be exactly {_get_module}" >&2
@@ -248,9 +253,11 @@ if [ -n "$ELF_ARTIFACT" ]; then
 else
 	# macOS: PHP extensions are Mach-O bundles; ld64 pulls the archive with
 	# -force_load (no --whole-archive) and exports get_module through
-	# resvg.exp. Ad-hoc signing is mandatory on Apple Silicon — unsigned
-	# code pages refuse to map.
+	# resvg.exp. Undefined symbols (the Zend API) resolve dynamically from the
+	# loading process. Ad-hoc signing is mandatory on Apple Silicon —
+	# unsigned code pages refuse to map.
 	cc -bundle -fPIC $STRIP_FLAG -o "$OUT" "$EB"/.libs/*.o \
+		-Wl,-undefined,dynamic_lookup \
 		-Wl,-exported_symbols_list,"$ROOT/resvg.exp" -Wl,-dead_strip -Wl,-bind_at_load \
 		-Wl,-force_load,"$LIB"
 	codesign -f -s - "$OUT"

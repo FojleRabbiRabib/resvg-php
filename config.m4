@@ -121,13 +121,18 @@ if test "$PHP_RESVG" != "no"; then
   dnl `resvg.map` exports exactly `get_module`; on Mach-O (macOS) ld64 takes
   dnl `-exported_symbols_list` over `resvg.exp` (same single entry), with
   dnl `-dead_strip` and `-bind_at_load` in place of the GNU -z pair.
+  dnl
+  dnl `-undefined dynamic_lookup` is required on Mach-O: unlike ELF, ld64
+  dnl resolves every undefined symbol at link time unless told otherwise, and
+  dnl the Zend API symbols this extension calls are provided by the php binary
+  dnl that loads it, not by any library on the link line.
   case "$host_os" in
     darwin*)
       RESVG_EXPORTS_LIST="$abs_srcdir/resvg.exp"
       if test ! -f "$RESVG_EXPORTS_LIST"; then
         AC_MSG_ERROR([resvg.exp not found at $RESVG_EXPORTS_LIST; it is part of the extension sources])
       fi
-      RESVG_SHARED_LIBADD="$RESVG_SHARED_LIBADD $RESVG_ARCHIVE -Wl,-dead_strip -Wl,-bind_at_load -Wl,-exported_symbols_list,$RESVG_EXPORTS_LIST"
+      RESVG_SHARED_LIBADD="$RESVG_SHARED_LIBADD $RESVG_ARCHIVE -Wl,-dead_strip -Wl,-bind_at_load -Wl,-undefined,dynamic_lookup -Wl,-exported_symbols_list,$RESVG_EXPORTS_LIST"
       ;;
     *)
       RESVG_LINK_SCRIPT="$abs_srcdir/resvg.map"
