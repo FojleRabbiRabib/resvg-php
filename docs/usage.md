@@ -262,7 +262,9 @@ exception messages.
 - Prefer `parse()` + `Tree::render()` when the same document is rendered more than
   once: parsing happens once and every render reuses the tree.
 - Rendering is single-threaded per call, like the upstream library. Renders across
-  concurrent PHP workers scale with cores.
+  concurrent PHP workers scale with cores, and on ZTS builds concurrent threads in
+  one process can render independently — no shared mutable state exists between
+  calls.
 - The PNG is produced by the same encoder the upstream `resvg` tool uses; there is no
   re-encode step between the raster surface and the returned bytes.
 - For large images, prefer the `output` sink over the returned string: the PNG is

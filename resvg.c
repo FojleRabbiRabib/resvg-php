@@ -15,6 +15,10 @@
 #include "resvg_php_shim.h"
 #include "resvg_internal.h"
 
+#if defined(ZTS) && defined(COMPILE_DL_RESVG)
+ZEND_TSRMLS_CACHE_DEFINE()
+#endif
+
 ZEND_DECLARE_MODULE_GLOBALS(resvg)
 
 static PHP_GINIT_FUNCTION(resvg)
@@ -82,7 +86,11 @@ PHP_MINFO_FUNCTION(resvg)
 	php_info_print_table_header(2, "resvg support", "enabled");
 	php_info_print_table_row(2, "Version", PHP_RESVG_VERSION);
 	php_info_print_table_row(2, "Upstream resvg", pin);
+#ifdef ZTS
+	php_info_print_table_row(2, "Thread safety", "enabled (ZTS)");
+#else
 	php_info_print_table_row(2, "Thread safety", "disabled (NTS)");
+#endif
 	php_info_print_table_row(2, "Features",
 							 "svgz, text, system-fonts, memmap-fonts, raster-images");
 	php_info_print_table_row(2, "Default font", default_font);

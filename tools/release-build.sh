@@ -12,6 +12,7 @@
 # Env: RESVG_VERSION, OUT_DIR (default: build/dist), ARCH (default: from uname -m),
 #      ABIS (space-separated subset, default: "8.3 8.4 8.5"),
 #      LIBC (glibc | musl | bsdlibc; default: detected from the build host),
+#      TS (nts | zts; default: nts — PIE matches the thread-safety segment),
 #      RELEASE_TAG (optional, e.g. v0.1.0+resvg.0.48.1 — PIE resolves packages by the
 #      full tag version, so archives are additionally published under that name).
 set -euo pipefail
@@ -19,6 +20,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="${OUT_DIR:-$ROOT/build/dist}"
 ARCH="${ARCH:-$(uname -m)}"
+
+# PIE's asset name carries the thread-safety segment bracket (`-nts` or `-zts`);
+# a ZTS PHP install resolves only the `-zts` spelling.
+TS="${TS:-nts}"
+case "$TS" in
+	nts|zts) ;;
+	*) echo "FAIL: unsupported TS '$TS' (supported: nts, zts)" >&2; exit 2 ;;
+esac
 
 # PIE encodes the OS family in the archive name (linux, darwin, ...).
 OS_NAME="$(uname -s)"
@@ -106,7 +115,7 @@ for php_ver in "${ABIS[@]}"; do
 	# php_{ExtensionName}-{Version}_php{PhpVersion}-{Arch}-{OS}-{Libc}-{TSMode}.zip
 	# {Arch} is PIE's normalized enum spelling (arm64, never aarch64) and {OS}
 	# the OS family (linux, darwin). Archive must contain `resvg.so`.
-	PIE_ZIP_NAME="php_resvg-${EXT_VERSION}_php${php_ver}-${PIE_ARCH}-${OS_SEG}-${LIBC}-nts.zip"
+	PIE_ZIP_NAME="php_resvg-${EXT_VERSION}_php${php_ver}-${PIE_ARCH}-${OS_SEG}-${LIBC}-${TS}.zip"
 	TMP_STAGE="$(mktemp -d)"
 	cp "$SRC_SO" "$TMP_STAGE/resvg.so"
 	(
@@ -120,8 +129,8 @@ for php_ver in "${ABIS[@]}"; do
 	# `uname -m` reports `aarch64` on Linux ARM hosts; the alias keeps direct
 	# downloaders who expect the host spelling working too.
 	if [ "$PIE_ARCH" != "$ARCH" ]; then
-		ALIAS_ZIP_NAME="$(printf 'php_resvg-%s_php%s-%s-%s-%s-nts.zip' \
-			"$EXT_VERSION" "$php_ver" "$ARCH" "$OS_SEG" "$LIBC" | tr '[:upper:]' '[:lower:]')"
+		ALIAS_ZIP_NAME="$(printf 'php_resvg-%s_php%s-%s-%s-%s-%s.zip' \
+			"$EXT_VERSION" "$php_ver" "$ARCH" "$OS_SEG" "$LIBC" "$TS" | tr '[:upper:]' '[:lower:]')"
 		cp "$OUT_DIR/$PIE_ZIP_NAME" "$OUT_DIR/$ALIAS_ZIP_NAME"
 		echo "   packaged PIE asset (host-arch alias): $ALIAS_ZIP_NAME"
 	fi
@@ -131,13 +140,13 @@ for php_ver in "${ABIS[@]}"; do
 	# PIE lowercases its expectation, so the alternate name is lowercased to match
 	# under either strict or case-folded comparison.
 	if [ -n "${RELEASE_TAG:-}" ]; then
-		PIE_TAG_ZIP_NAME="$(printf 'php_resvg-%s_php%s-%s-%s-%s-nts.zip' \
-			"$RELEASE_TAG" "$php_ver" "$PIE_ARCH" "$OS_SEG" "$LIBC" | tr '[:upper:]' '[:lower:]')"
+		PIE_TAG_ZIP_NAME="$(printf 'php_resvg-%s_php%s-%s-%s-%s-%s.zip' \
+			"$RELEASE_TAG" "$php_ver" "$PIE_ARCH" "$OS_SEG" "$LIBC" "$TS" | tr '[:upper:]' '[:lower:]')"
 		cp "$OUT_DIR/$PIE_ZIP_NAME" "$OUT_DIR/$PIE_TAG_ZIP_NAME"
 		echo "   packaged PIE asset (tag-version name): $PIE_TAG_ZIP_NAME"
 		if [ "$PIE_ARCH" != "$ARCH" ]; then
-			PIE_TAG_ALIAS_NAME="$(printf 'php_resvg-%s_php%s-%s-%s-%s-nts.zip' \
-				"$RELEASE_TAG" "$php_ver" "$ARCH" "$OS_SEG" "$LIBC" | tr '[:upper:]' '[:lower:]')"
+			PIE_TAG_ALIAS_NAME="$(printf 'php_resvg-%s_php%s-%s-%s-%s-%s.zip' \
+				"$RELEASE_TAG" "$php_ver" "$ARCH" "$OS_SEG" "$LIBC" "$TS" | tr '[:upper:]' '[:lower:]')"
 			cp "$OUT_DIR/$PIE_ZIP_NAME" "$OUT_DIR/$PIE_TAG_ALIAS_NAME"
 			echo "   packaged PIE asset (tag-version host-arch alias): $PIE_TAG_ALIAS_NAME"
 		fi

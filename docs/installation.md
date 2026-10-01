@@ -47,6 +47,13 @@ The macOS builds are ad-hoc signed Mach-O bundles; `shasum -c SHA256SUMS`
 verifies them (macOS ships `shasum` rather than `sha256sum`). PIE resolves
 macOS installs from the `-darwin-bsdlibc-` archives automatically.
 
+A `.so` is ABI-bound to its PHP build's thread safety: an NTS extension will not
+load under a thread-safe PHP, and vice versa. PIE selects the matching archive
+from the `-nts`/`-zts` segment; for a manual install, pick the asset whose
+segment matches `php -i | grep 'Thread Safety'`. To build the thread-safe
+variant yourself, run `tools/build.sh` against a ZTS `php-config`, and validate
+the build with `tools/test-zts.sh`.
+
 Verify:
 
 ```sh

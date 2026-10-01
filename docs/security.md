@@ -130,10 +130,15 @@ backtraces appear in exception messages.
 
 ## Deployment guidance
 
-- Prefer the latest PHP patch release; this extension supports 8.3/8.4/8.5 NTS.
+- Prefer the latest PHP patch release; this extension supports 8.3/8.4/8.5 NTS
+  and ZTS.
 - Render untrusted documents with `confineResources` on, and with ceilings sized
   to the smallest images your application actually needs.
 - If workers are long-lived, construct one `Resvg\Renderer` per worker and reuse
   it — a renderer holds a font database, and re-scanning fonts per request is
   the most expensive thing the extension does.
-- The extension is validated on NTS builds only. ZTS is not yet claimed.
+- The extension is validated on both NTS and ZTS builds. Under ZTS the library
+  holds no shared mutable state: the options handle and parsed tree are owned by
+  the calling thread's objects, and the shim's last-error slot is thread-local,
+  so concurrent renders in one process cannot interfere. The multi-threaded
+  stress harness is run under Valgrind Helgrind and Memcheck in CI.

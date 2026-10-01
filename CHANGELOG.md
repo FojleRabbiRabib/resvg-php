@@ -21,6 +21,12 @@ Semantic Versioning.
   `-darwin-bsdlibc-` PIE archives and bare `.so` assets for all three PHP
   ABIs. The build detects Mach-O and relinks with `ld64` flags and an
   exported-symbols list instead of the ELF version script.
+- ZTS (thread-safe) PHP builds are validated, not merely intended-safe: a CI
+  job builds and gates the extension under the thread-safe SAPI, asserts the
+  module reports thread safety, and runs a multi-threaded stress harness
+  (concurrent options, parse, render, node export, writer, error paths, and
+  frees across eight threads) under Valgrind Helgrind and Memcheck. Release
+  packaging emits the `-zts` thread-safety segment PIE matches.
 
 ### Changed
 
@@ -28,6 +34,8 @@ Semantic Versioning.
   installed headers instead of `php-config --phpapi`, which the official
   Docker PHP images do not implement; source builds inside those images now
   work.
+- `phpinfo()` reports thread safety from the build (`enabled (ZTS)` or
+  `disabled (NTS)`) instead of a fixed NTS string.
 - Release archives use PIE's normalized architecture spelling (`arm64`, never
   `aarch64`) so the installer resolves them on ARM hosts; the host spelling is
   kept as an additional alias. PIE's OS and libc segments (`darwin`,

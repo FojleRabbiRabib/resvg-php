@@ -29,11 +29,13 @@ deterministically — the same input produces the same bytes on every machine.
 
 ## Requirements
 
-- PHP 8.3, 8.4, or 8.5, non-thread-safe (NTS) builds
-- x86-64 Linux with glibc
+- PHP 8.3, 8.4, or 8.5, non-thread-safe (NTS) or thread-safe (ZTS) builds
+- Linux x86-64 or aarch64 (glibc or musl), or macOS arm64 or x86-64
 - For building from source: Rust 1.85 or newer, and a PHP development toolchain
 
-ZTS (thread-safe) builds are not yet validated; the extension is tested on NTS only.
+ZTS builds are validated: the extension is built and gated under the thread-safe
+SAPI, and a multi-threaded stress harness runs clean under Valgrind Helgrind and
+Memcheck.
 
 ## Installation
 
