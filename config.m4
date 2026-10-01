@@ -59,11 +59,13 @@ if test "$PHP_RESVG" != "no"; then
   dnl override a DEBUG build's -O0.
   RESVG_HARDEN_CFLAGS="-fstack-protector-strong -fvisibility=hidden"
 
-  dnl Stack-clash protection where the toolchain supports the flag (GNU ld
-  dnl toolchains do; some Apple clang versions have varied on it).
+  dnl Stack-clash protection where the toolchain supports the flag. Apple clang
+  dnl accepts the flag on arm64 but warns "argument unused"; the extension builds
+  dnl with -Werror, so the probe must too, or a warning-level rejection becomes a
+  dnl hard build failure.
   AC_MSG_CHECKING([whether the C toolchain supports -fstack-clash-protection])
   resvg_save_CFLAGS="$CFLAGS"
-  CFLAGS="$CFLAGS -fstack-clash-protection"
+  CFLAGS="$CFLAGS -Werror -fstack-clash-protection"
   AC_COMPILE_IFELSE(
     [AC_LANG_PROGRAM([], [[return 0;]])],
     [resvg_clash=yes], [resvg_clash=no])
