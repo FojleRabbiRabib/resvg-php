@@ -21,10 +21,22 @@ V="$ROOT/vendor-src"
 SRC="$V/resvg-$RESVG_VERSION"
 TARBALL="$V/resvg-v$RESVG_VERSION.tar.gz"
 
+# SHA-256 calculator: `sha256sum` on Linux, `shasum -a 256` on macOS / BSD.
+calc_sha256() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | awk '{print $1}'
+	elif command -v shasum >/dev/null 2>&1; then
+		shasum -a 256 "$1" | awk '{print $1}'
+	else
+		echo "FAIL: neither sha256sum nor shasum found" >&2
+		exit 1
+	fi
+}
+
 mkdir -p "$V"
 [ -f "$TARBALL" ] || curl -fsSL -o "$TARBALL" \
 	"https://codeload.github.com/linebender/resvg/tar.gz/refs/tags/v$RESVG_VERSION"
-actual_sha="$(sha256sum "$TARBALL" | awk '{print $1}')"
+actual_sha="$(calc_sha256 "$TARBALL")"
 [ "$actual_sha" = "$RESVG_SHA256" ] || {
 	echo "FAIL: resvg SHA256 mismatch (expected $RESVG_SHA256, got $actual_sha)" >&2
 	exit 1

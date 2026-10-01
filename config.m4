@@ -1,7 +1,7 @@
 dnl resvg-php extension configuration.
 dnl
 dnl A plain `phpize && ./configure && make && make install` — the path PIE and
-dnl PECL run (DESIGN §9.1) — never invokes cargo, so this file drives the Rust
+dnl PECL run — never invokes cargo, so this file drives the Rust
 dnl shim build itself: it checks the toolchain here (where build-environment
 dnl checks belong), records the cargo rules that land in `Makefile.objects`,
 dnl and links the resulting static archive into resvg.so.
@@ -44,7 +44,7 @@ if test "$PHP_RESVG" != "no"; then
   fi
 
   dnl Shim headers live with the Rust bridge that owns the vendored renderer.
-  dnl The build driver passes RESVG_SHIM_INCLUDE; the fallback suits the §3 root
+  dnl The build driver passes RESVG_SHIM_INCLUDE; the fallback suits the root
   dnl layout, where native/ is a subdirectory of the repository root.
   RPHP_SHIM_INCLUDE="${RESVG_SHIM_INCLUDE:-$abs_srcdir/native/include}"
   if test ! -f "$RPHP_SHIM_INCLUDE/resvg_php_shim.h"; then
@@ -52,12 +52,26 @@ if test "$PHP_RESVG" != "no"; then
   fi
   PHP_ADD_INCLUDE([$RPHP_SHIM_INCLUDE])
 
-  dnl §9's C hardening belongs here, not only in tools/build.sh: this configure
-  dnl path is the canonical artifact path (§9.1), so a PIE/PECL/distro source
+  dnl The C hardening belongs here, not only in tools/build.sh: this configure
+  dnl path is the canonical artifact path, so a PIE/PECL/distro source
   dnl build must produce the same hardened object as the driver. No -O2 is added
   dnl here — PHP's own default CFLAGS already carry it, and adding it would
   dnl override a DEBUG build's -O0.
-  RESVG_HARDEN_CFLAGS="-fstack-protector-strong -fstack-clash-protection -fvisibility=hidden"
+  RESVG_HARDEN_CFLAGS="-fstack-protector-strong -fvisibility=hidden"
+
+  dnl Stack-clash protection where the toolchain supports the flag (GNU ld
+  dnl toolchains do; some Apple clang versions have varied on it).
+  AC_MSG_CHECKING([whether the C toolchain supports -fstack-clash-protection])
+  resvg_save_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -fstack-clash-protection"
+  AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM([], [[return 0;]])],
+    [resvg_clash=yes], [resvg_clash=no])
+  CFLAGS="$resvg_save_CFLAGS"
+  AC_MSG_RESULT([$resvg_clash])
+  if test "$resvg_clash" = "yes"; then
+    RESVG_HARDEN_CFLAGS="$RESVG_HARDEN_CFLAGS -fstack-clash-protection"
+  fi
 
   dnl _FORTIFY_SOURCE=3 where the toolchain supports it, =2 otherwise. The -U is
   dnl required: distro GCC predefines it, and redefining to a different value is a
@@ -73,10 +87,11 @@ if test "$PHP_RESVG" != "no"; then
   AC_MSG_RESULT([$RESVG_FORTIFY])
   RESVG_HARDEN_CFLAGS="$RESVG_HARDEN_CFLAGS -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=$RESVG_FORTIFY"
 
-  dnl CET is an x86-64 facility; applying it on another Tier 1 target is
-  dnl meaningless, so it is gated on the host CPU rather than unconditional.
-  case "$host_cpu" in
-    x86_64|amd64) RESVG_HARDEN_CFLAGS="$RESVG_HARDEN_CFLAGS -fcf-protection=full" ;;
+  dnl CET is an x86-64 facility on ELF platforms; applying it on another Tier 1
+  dnl target is meaningless, and Apple clang (darwin x86_64) rejects the flag.
+  case "$host_cpu:$host_os" in
+    x86_64:darwin*|amd64:darwin*) ;;
+    x86_64:*|amd64:*) RESVG_HARDEN_CFLAGS="$RESVG_HARDEN_CFLAGS -fcf-protection=full" ;;
   esac
 
   PHP_NEW_EXTENSION([resvg], [resvg.c resvg_options.c resvg_exception.c resvg_renderer.c resvg_document.c], [$ext_shared],,
@@ -86,7 +101,7 @@ if test "$PHP_RESVG" != "no"; then
   dnl are appended into the generated Makefile.objects) and linked after the
   dnl extension objects, so every resvg_php_* symbol resolves inside resvg.so.
   dnl Both paths are overridable for out-of-tree builds; the defaults suit a
-  dnl plain `phpize && ./configure` at the §3 root layout.
+  dnl plain `phpize && ./configure` at the root layout.
   RESVG_NATIVE_DIR="${RESVG_NATIVE_DIR:-$abs_srcdir/native}"
   RESVG_ARCHIVE="${RESVG_ARCHIVE:-$RESVG_NATIVE_DIR/target/release/libresvg_php.a}"
 
@@ -99,14 +114,27 @@ if test "$PHP_RESVG" != "no"; then
     AC_MSG_ERROR([vendored resvg source is missing at $RESVG_VENDOR_DIR. It is fetched and SHA-256-verified by tools/build.sh; run that once (or fetch it there) before building.])
   fi
 
-  dnl §9 link hardening and the export map, so the canonical link hides the
-  dnl internal symbols and matches tools/build.sh's relink. `resvg.map` exports
-  dnl exactly `get_module`.
-  RESVG_LINK_SCRIPT="$abs_srcdir/resvg.map"
-  if test ! -f "$RESVG_LINK_SCRIPT"; then
-    AC_MSG_ERROR([resvg.map not found at $RESVG_LINK_SCRIPT; it is part of the extension sources])
-  fi
-  RESVG_SHARED_LIBADD="$RESVG_SHARED_LIBADD $RESVG_ARCHIVE -Wl,--version-script=$RESVG_LINK_SCRIPT -Wl,--gc-sections -Wl,-z,relro,-z,now,-z,noexecstack"
+  dnl Link hardening and the export map, so the canonical link hides the
+  dnl internal symbols and matches tools/build.sh's relink. On ELF (Linux/musl)
+  dnl `resvg.map` exports exactly `get_module`; on Mach-O (macOS) ld64 takes
+  dnl `-exported_symbols_list` over `resvg.exp` (same single entry), with
+  dnl `-dead_strip` and `-bind_at_load` in place of the GNU -z pair.
+  case "$host_os" in
+    darwin*)
+      RESVG_EXPORTS_LIST="$abs_srcdir/resvg.exp"
+      if test ! -f "$RESVG_EXPORTS_LIST"; then
+        AC_MSG_ERROR([resvg.exp not found at $RESVG_EXPORTS_LIST; it is part of the extension sources])
+      fi
+      RESVG_SHARED_LIBADD="$RESVG_SHARED_LIBADD $RESVG_ARCHIVE -Wl,-dead_strip -Wl,-bind_at_load -Wl,-exported_symbols_list,$RESVG_EXPORTS_LIST"
+      ;;
+    *)
+      RESVG_LINK_SCRIPT="$abs_srcdir/resvg.map"
+      if test ! -f "$RESVG_LINK_SCRIPT"; then
+        AC_MSG_ERROR([resvg.map not found at $RESVG_LINK_SCRIPT; it is part of the extension sources])
+      fi
+      RESVG_SHARED_LIBADD="$RESVG_SHARED_LIBADD $RESVG_ARCHIVE -Wl,--version-script=$RESVG_LINK_SCRIPT -Wl,--gc-sections -Wl,-z,relro,-z,now,-z,noexecstack"
+      ;;
+  esac
 
   PHP_ADD_MAKEFILE_FRAGMENT
   PHP_SUBST(RESVG_CARGO)

@@ -32,11 +32,21 @@ DEBUG_SUFFIX=""
 [ "$DEBUG" = "1" ] && DEBUG_SUFFIX="-debug"
 OUT="$B/resvg-php$PHPV$DEBUG_SUFFIX.so"
 
+# Artifact format and link-edit tooling differ per kernel: ELF + GNU ld on
+# Linux, Mach-O + ld64 on macOS. The extension code is identical; only the
+# relink flags and the artifact gates branch on this.
+OS_NAME="$(uname -s)"
+case "$OS_NAME" in
+	Linux) ELF_ARTIFACT=1 ;;
+	Darwin) ELF_ARTIFACT="" ;;
+	*) echo "FAIL: unsupported OS '$OS_NAME' (supported: Linux, Darwin)" >&2; exit 2 ;;
+esac
+
 # Extension sources live at the repository root (PECL/PIE-canonical layout).
 EXT_SOURCES=(
 	config.m4 php_resvg.h resvg.c resvg_options.c resvg_exception.c
 	resvg_renderer.c resvg_document.c resvg.stub.php resvg_arginfo.h
-	resvg_internal.h resvg.map Makefile.frag
+	resvg_internal.h resvg.map resvg.exp Makefile.frag
 )
 
 PHP_BIN="php$PHPV"
@@ -87,6 +97,36 @@ verify_php_toolchain() {
 	echo "   PHP $PHPV ABI $config_api ($PHP_BIN_PATH)"
 }
 
+assert_macho() {
+	local exports deps library
+
+	# nm -gU lists defined external symbols; C names carry the Mach-O
+	# leading underscore. The export isolation must match the ELF gate's.
+	exports="$(nm -gU "$OUT" | awk '{print $NF}' | sed '/^$/d' | sort -u)"
+	echo "   dynamic exports: ${exports//$'\n'/ }"
+	[ "$exports" = "_get_module" ] || {
+		echo "FAIL: dynamic export table must be exactly {_get_module}" >&2
+		exit 1
+	}
+
+	deps="$(otool -L "$OUT" | tail -n +2 | awk '{print $1}' | sed '/^$/d')"
+	echo "   linked libraries: ${deps//$'\n'/ }"
+	while IFS= read -r library; do
+		[ -z "$library" ] && continue
+		case "$library" in
+			/usr/lib/libSystem.B.dylib) ;;
+			*) echo "FAIL: unexpected dynamic dependency: $library" >&2; exit 1 ;;
+		esac
+	done <<< "$deps"
+
+	if otool -l "$OUT" | grep -q LC_RPATH; then
+		echo "FAIL: $OUT must not contain LC_RPATH" >&2
+		exit 1
+	fi
+	codesign -v "$OUT" || { echo "FAIL: ad-hoc signature is invalid" >&2; exit 1; }
+	echo "   Mach-O OK (single export, libSystem only, no rpath, valid signature)"
+}
+
 assert_elf() {
 	local exports needed library glibc_versions glibc_max
 
@@ -134,6 +174,17 @@ assert_elf() {
 	echo "   ELF hardening OK (RELRO, BIND_NOW, non-exec stack, no rpath)"
 }
 
+# Core count: `nproc` on Linux, `sysctl -n hw.ncpu` on macOS.
+num_cpus() {
+	if command -v nproc >/dev/null 2>&1; then
+		nproc
+	elif command -v sysctl >/dev/null 2>&1; then
+		sysctl -n hw.ncpu 2>/dev/null || echo 2
+	else
+		echo 2
+	fi
+}
+
 verify_loadable() {
 	"$PHP_BIN_PATH" -n -d "extension=$OUT" -r 'exit(extension_loaded("resvg") ? 0 : 1);' || {
 		echo "FAIL: $OUT does not load under PHP $PHPV" >&2
@@ -179,7 +230,7 @@ done
 		RESVG_VENDOR_DIR="$ROOT/vendor-src" \
 		./configure --enable-resvg --with-php-config="$PHP_CONFIG_BIN_PATH" \
 		>/tmp/resvg-configure.log 2>&1
-	make -j"$(nproc)" >/tmp/resvg-make.log 2>&1 || {
+	make -j"$(num_cpus)" >/tmp/resvg-make.log 2>&1 || {
 		tail -40 /tmp/resvg-make.log >&2
 		echo "FAIL: make" >&2
 		exit 1
@@ -189,15 +240,30 @@ echo "   objects: $(find "$EB/.libs" -maxdepth 1 -name '*.o' -type f | wc -l)"
 
 echo ">> [4/5] relink static self-contained $OUT"
 mkdir -p "$B"
-gcc -shared -fPIC $STRIP_FLAG -o "$OUT" "$EB"/.libs/*.o \
-	-Wl,--version-script="$ROOT/resvg.map" -Wl,--gc-sections $HARDEN_LDFLAGS \
-	-Wl,--whole-archive "$LIB" -Wl,--no-whole-archive \
-	-lpthread -ldl -lm -lgcc_s
+if [ -n "$ELF_ARTIFACT" ]; then
+	gcc -shared -fPIC $STRIP_FLAG -o "$OUT" "$EB"/.libs/*.o \
+		-Wl,--version-script="$ROOT/resvg.map" -Wl,--gc-sections $HARDEN_LDFLAGS \
+		-Wl,--whole-archive "$LIB" -Wl,--no-whole-archive \
+		-lpthread -ldl -lm -lgcc_s
+else
+	# macOS: PHP extensions are Mach-O bundles; ld64 pulls the archive with
+	# -force_load (no --whole-archive) and exports get_module through
+	# resvg.exp. Ad-hoc signing is mandatory on Apple Silicon — unsigned
+	# code pages refuse to map.
+	cc -bundle -fPIC $STRIP_FLAG -o "$OUT" "$EB"/.libs/*.o \
+		-Wl,-exported_symbols_list,"$ROOT/resvg.exp" -Wl,-dead_strip -Wl,-bind_at_load \
+		-Wl,-force_load,"$LIB"
+	codesign -f -s - "$OUT"
+fi
 echo "   built: $OUT ($(du -h "$OUT" | cut -f1))"
 
 echo ">> [5/5] validate ABI, exports, dependencies, and loading"
 verify_loadable
-assert_elf
+if [ -n "$ELF_ARTIFACT" ]; then
+	assert_elf
+else
+	assert_macho
+fi
 
 if [ "$SKIP_GATE" = "1" ]; then
 	echo "SKIP: fidelity gate requested (build verification only)."

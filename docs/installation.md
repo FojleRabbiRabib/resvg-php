@@ -28,6 +28,9 @@ cosign verify-blob --bundle resvg-php8.3-linux-aarch64.so.bundle \
 # on Alpine / musl:
 cosign verify-blob --bundle resvg-php8.3-linux-musl-x86_64.so.bundle \
     resvg-php8.3-linux-musl-x86_64.so
+# on macOS (Apple silicon; x86-64 builds are named ...-darwin-x86_64.so):
+cosign verify-blob --bundle resvg-php8.3-darwin-arm64.so.bundle \
+    resvg-php8.3-darwin-arm64.so
 ```
 
 Then point PHP at the extension:
@@ -37,7 +40,12 @@ Then point PHP at the extension:
 extension=/opt/resvg-php/resvg-php8.3-linux-x86_64.so
 ; or /opt/resvg-php/resvg-php8.3-linux-aarch64.so on aarch64
 ; or /opt/resvg-php/resvg-php8.3-linux-musl-x86_64.so on Alpine (musl)
+; or /opt/resvg-php/resvg-php8.3-darwin-arm64.so on macOS
 ```
+
+The macOS builds are ad-hoc signed Mach-O bundles; `shasum -c SHA256SUMS`
+verifies them (macOS ships `shasum` rather than `sha256sum`). PIE resolves
+macOS installs from the `-darwin-bsdlibc-` archives automatically.
 
 Verify:
 

@@ -11,7 +11,7 @@
 #
 # Env: RESVG_VERSION, OUT_DIR (default: build/dist), ARCH (default: from uname -m),
 #      ABIS (space-separated subset, default: "8.3 8.4 8.5"),
-#      LIBC (glibc | musl; default: detected from `ldd --version`),
+#      LIBC (glibc | musl | bsdlibc; default: detected from the build host),
 #      RELEASE_TAG (optional, e.g. v0.1.0+resvg.0.48.1 — PIE resolves packages by the
 #      full tag version, so archives are additionally published under that name).
 set -euo pipefail
@@ -20,16 +20,32 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="${OUT_DIR:-$ROOT/build/dist}"
 ARCH="${ARCH:-$(uname -m)}"
 
+# PIE encodes the OS family in the archive name (linux, darwin, ...).
+OS_NAME="$(uname -s)"
+case "$OS_NAME" in
+	Linux) OS_SEG="${OS_SEG:-linux}" ;;
+	Darwin) OS_SEG="${OS_SEG:-darwin}" ;;
+	*) echo "FAIL: unsupported OS '$OS_NAME' (supported: Linux, Darwin)" >&2; exit 2 ;;
+esac
+
+# PIE names archives after its normalized architecture enum: aarch64 hosts
+# resolve to `arm64` (PhpBinaryPath parses php_uname("m") through the
+# Architecture enum), so aarch64 artifacts must also be published under that
+# spelling or PIE never finds them.
+PIE_ARCH="${ARCH/aarch64/arm64}"
+
 # PIE encodes the libc flavour in the archive name; detect it from the build
-# host when the caller has not pinned it. The musl dynamic loader is the
-# filesystem marker for Alpine — parsing `ldd --version` would not do, since
-# musl's ldd exits non-zero under `set -o pipefail` even as it prints the
-# banner.
+# host when the caller has not pinned it. macOS has no glibc/musl split — PIE
+# reports `bsdlibc` there. The musl dynamic loader is the filesystem marker
+# for Alpine — parsing `ldd --version` would not do, since musl's ldd exits
+# non-zero under `set -o pipefail` even as it prints the banner.
 if [ -n "${LIBC:-}" ]; then
 	case "$LIBC" in
-		glibc|musl) ;;
-		*) echo "FAIL: unsupported LIBC '$LIBC' (supported: glibc, musl)" >&2; exit 2 ;;
+		glibc|musl|bsdlibc) ;;
+		*) echo "FAIL: unsupported LIBC '$LIBC' (supported: glibc, musl, bsdlibc)" >&2; exit 2 ;;
 	esac
+elif [ "$OS_SEG" = "darwin" ]; then
+	LIBC=bsdlibc
 elif ls /lib/ld-musl-*.so.* >/dev/null 2>&1; then
 	LIBC=musl
 else
@@ -39,6 +55,18 @@ fi
 command -v zip >/dev/null 2>&1 || {
 	echo "FAIL: zip utility not found; install zip" >&2
 	exit 1
+}
+
+# SHA-256 calculator: `sha256sum` on Linux, `shasum -a 256` on macOS / BSD.
+calc_sha256() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | awk '{print $1}'
+	elif command -v shasum >/dev/null 2>&1; then
+		shasum -a 256 "$1" | awk '{print $1}'
+	else
+		echo "FAIL: neither sha256sum nor shasum found" >&2
+		exit 1
+	fi
 }
 
 read -ra ABIS <<< "${ABIS:-8.3 8.4 8.5}"
@@ -76,8 +104,9 @@ for php_ver in "${ABIS[@]}"; do
 
 	# 1. PIE-canonical release archive:
 	# php_{ExtensionName}-{Version}_php{PhpVersion}-{Arch}-{OS}-{Libc}-{TSMode}.zip
-	# Archive must contain the file named exactly `resvg.so`.
-	PIE_ZIP_NAME="php_resvg-${EXT_VERSION}_php${php_ver}-${ARCH}-linux-${LIBC}-nts.zip"
+	# {Arch} is PIE's normalized enum spelling (arm64, never aarch64) and {OS}
+	# the OS family (linux, darwin). Archive must contain `resvg.so`.
+	PIE_ZIP_NAME="php_resvg-${EXT_VERSION}_php${php_ver}-${PIE_ARCH}-${OS_SEG}-${LIBC}-nts.zip"
 	TMP_STAGE="$(mktemp -d)"
 	cp "$SRC_SO" "$TMP_STAGE/resvg.so"
 	(
@@ -87,21 +116,39 @@ for php_ver in "${ABIS[@]}"; do
 	rm -rf "$TMP_STAGE"
 	echo "   packaged PIE asset: $PIE_ZIP_NAME"
 
+	# Host arch name alias. PIE looks for the normalized `arm64` spelling, but
+	# `uname -m` reports `aarch64` on Linux ARM hosts; the alias keeps direct
+	# downloaders who expect the host spelling working too.
+	if [ "$PIE_ARCH" != "$ARCH" ]; then
+		ALIAS_ZIP_NAME="$(printf 'php_resvg-%s_php%s-%s-%s-%s-nts.zip' \
+			"$EXT_VERSION" "$php_ver" "$ARCH" "$OS_SEG" "$LIBC" | tr '[:upper:]' '[:lower:]')"
+		cp "$OUT_DIR/$PIE_ZIP_NAME" "$OUT_DIR/$ALIAS_ZIP_NAME"
+		echo "   packaged PIE asset (host-arch alias): $ALIAS_ZIP_NAME"
+	fi
+
 	# PIE resolves the package by the tag's full version (pretty version, e.g.
 	# v0.1.0+resvg.0.48.1), so publish the identical archive under that name too;
 	# PIE lowercases its expectation, so the alternate name is lowercased to match
 	# under either strict or case-folded comparison.
 	if [ -n "${RELEASE_TAG:-}" ]; then
-		PIE_TAG_ZIP_NAME="$(printf 'php_resvg-%s_php%s-%s-linux-%s-nts.zip' \
-			"$RELEASE_TAG" "$php_ver" "$ARCH" "$LIBC" | tr '[:upper:]' '[:lower:]')"
+		PIE_TAG_ZIP_NAME="$(printf 'php_resvg-%s_php%s-%s-%s-%s-nts.zip' \
+			"$RELEASE_TAG" "$php_ver" "$PIE_ARCH" "$OS_SEG" "$LIBC" | tr '[:upper:]' '[:lower:]')"
 		cp "$OUT_DIR/$PIE_ZIP_NAME" "$OUT_DIR/$PIE_TAG_ZIP_NAME"
 		echo "   packaged PIE asset (tag-version name): $PIE_TAG_ZIP_NAME"
+		if [ "$PIE_ARCH" != "$ARCH" ]; then
+			PIE_TAG_ALIAS_NAME="$(printf 'php_resvg-%s_php%s-%s-%s-%s-nts.zip' \
+				"$RELEASE_TAG" "$php_ver" "$ARCH" "$OS_SEG" "$LIBC" | tr '[:upper:]' '[:lower:]')"
+			cp "$OUT_DIR/$PIE_ZIP_NAME" "$OUT_DIR/$PIE_TAG_ALIAS_NAME"
+			echo "   packaged PIE asset (tag-version host-arch alias): $PIE_TAG_ALIAS_NAME"
+		fi
 	fi
 
-	# 2. Direct-download bare .so. The glibc name is the original published
-	# spelling; musl artifacts carry the libc in the name so the two families
-	# cannot collide.
-	if [ "$LIBC" = "musl" ]; then
+	# 2. Direct-download bare .so. The glibc Linux name is the original
+	# published spelling; musl and macOS artifacts carry their platform in the
+	# name so the families cannot collide.
+	if [ "$OS_SEG" = "darwin" ]; then
+		BARE_SO_NAME="resvg-php${php_ver}-darwin-${ARCH}.so"
+	elif [ "$LIBC" = "musl" ]; then
 		BARE_SO_NAME="resvg-php${php_ver}-linux-musl-${ARCH}.so"
 	else
 		BARE_SO_NAME="resvg-php${php_ver}-linux-${ARCH}.so"
@@ -115,12 +162,14 @@ for php_ver in "${ABIS[@]}"; do
 	PHP_INC="$("$PHP_CONFIG_BIN" --include-dir 2>/dev/null || echo "")"
 	PHP_API="$(awk '$1 == "#define" && $2 == "ZEND_MODULE_API_NO" { print $3; exit }' \
 		"$PHP_INC/Zend/zend_modules.h" 2>/dev/null || echo "unknown")"
-	SO_SHA="$(sha256sum "$SRC_SO" | awk '{print $1}')"
+	SO_SHA="$(calc_sha256 "$SRC_SO")"
 	GIT_REV="$(git rev-parse HEAD 2>/dev/null || echo "unknown")"
 
-	# The provenance file name carries the libc for musl so the two families
-	# cannot collide; glibc keeps the original published spelling.
-	if [ "$LIBC" = "musl" ]; then
+	# The provenance file name carries the platform for musl and macOS so the
+	# families cannot collide; glibc Linux keeps the original spelling.
+	if [ "$OS_SEG" = "darwin" ]; then
+		PROV_NAME="resvg-php${php_ver}-darwin-${ARCH}.provenance"
+	elif [ "$LIBC" = "musl" ]; then
 		PROV_NAME="resvg-php${php_ver}-${ARCH}-musl.provenance"
 	else
 		PROV_NAME="resvg-php${php_ver}-${ARCH}.provenance"
@@ -130,6 +179,7 @@ for php_ver in "${ABIS[@]}"; do
 	php=$php_ver
 	php_api=$PHP_API
 	arch=$ARCH
+	os=$OS_SEG
 	libc=$LIBC
 	commit=$GIT_REV
 	sha256=$SO_SHA
@@ -139,7 +189,13 @@ done
 echo "==> Generating SHA256SUMS"
 (
 	cd "$OUT_DIR"
-	find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -print | sort | xargs sha256sum > /tmp/rsp-sums.tmp
+	# `sha256sum` on Linux, `shasum -a 256` on macOS; both print
+	# "<hash>  <name>", which is what the matching verifier consumes.
+	if command -v sha256sum >/dev/null 2>&1; then
+		find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -print | sort | xargs sha256sum > /tmp/rsp-sums.tmp
+	else
+		find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -print | sort | xargs shasum -a 256 > /tmp/rsp-sums.tmp
+	fi
 	mv /tmp/rsp-sums.tmp SHA256SUMS
 )
 

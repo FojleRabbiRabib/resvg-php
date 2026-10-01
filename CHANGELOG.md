@@ -16,6 +16,11 @@ Semantic Versioning.
   musl PIE archives and bare `.so` assets for all three PHP ABIs on both
   x86-64 and aarch64. On fontless Alpine containers, install `ttf-dejavu` or
   supply fonts via `fontFiles` so text renders.
+- macOS (Apple silicon and Intel) as a supported platform: CI builds and gates
+  the extension on macOS runners, and releases carry ad-hoc-signed
+  `-darwin-bsdlibc-` PIE archives and bare `.so` assets for all three PHP
+  ABIs. The build detects Mach-O and relinks with `ld64` flags and an
+  exported-symbols list instead of the ELF version script.
 
 ### Changed
 
@@ -23,11 +28,18 @@ Semantic Versioning.
   installed headers instead of `php-config --phpapi`, which the official
   Docker PHP images do not implement; source builds inside those images now
   work.
+- Release archives use PIE's normalized architecture spelling (`arm64`, never
+  `aarch64`) so the installer resolves them on ARM hosts; the host spelling is
+  kept as an additional alias. PIE's OS and libc segments (`darwin`,
+  `bsdlibc`) are emitted for macOS.
 
 ### Fixed
 
 - The ELF dependency gate strips readelf brackets with a POSIX-portable
   pattern, so builds on Alpine (BusyBox awk) validate correctly.
+- Checksum tooling falls back to `shasum -a 256` where `sha256sum` is absent,
+  and build parallelism uses `sysctl -n hw.ncpu` where `nproc` is absent, so
+  the build driver runs on macOS.
 
 ### Fixed
 

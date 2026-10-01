@@ -50,6 +50,7 @@ PIE resolves.
    <file role="src" name="resvg_arginfo.h"/>
    <file role="src" name="resvg.stub.php"/>
    <file role="src" name="resvg.map"/>
+   <file role="src" name="resvg.exp"/>
    <file role="src" name="composer.json"/>
    <file role="src" name="tools/fetch-resvg.sh"/>
    <file role="src" name="native/Cargo.toml"/>

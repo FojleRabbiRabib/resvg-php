@@ -1,0 +1,4 @@
+# Mach-O exported-symbols list for the resvg extension (ld64
+# -exported_symbols_list). Mirrors resvg.map: the dynamic table carries
+# exactly the PHP module entry point.
+_get_module

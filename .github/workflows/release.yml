@@ -146,9 +146,75 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  build-macos:
+    name: Build PHP ${{ matrix.php }} (${{ matrix.arch }}, macOS)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.3'
+            arch: arm64
+            os: macos-15
+          - php: '8.4'
+            arch: arm64
+            os: macos-15
+          - php: '8.5'
+            arch: arm64
+            os: macos-15
+          - php: '8.3'
+            arch: x86_64
+            os: macos-15-intel
+          - php: '8.4'
+            arch: x86_64
+            os: macos-15-intel
+          - php: '8.5'
+            arch: x86_64
+            os: macos-15-intel
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+          extensions: pcntl
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.98.1
+
+      - name: Fetch the pinned resvg source
+        run: tools/fetch-resvg.sh
+
+      - name: Restore Rust dependency cache
+        uses: Swatinem/rust-cache@v2.9.2
+        with:
+          shared-key: resvg-build-darwin-${{ matrix.arch }}
+          add-job-id-key: false
+          workspaces: |
+            native
+            vendor-src/resvg-0.48.1
+
+      - name: Build, gate, and package PHP ${{ matrix.php }} (macOS)
+        env:
+          ABIS: ${{ matrix.php }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: tools/release-build.sh
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: release-php${{ matrix.php }}-darwin-${{ matrix.arch }}
+          path: build/dist/*
+          if-no-files-found: error
+          retention-days: 3
+
   finalize:
     name: Assemble and publish release
-    needs: [build, build-musl]
+    needs: [build, build-musl, build-macos]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
