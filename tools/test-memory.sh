@@ -39,7 +39,10 @@ VALGRIND=(
 	-q
 )
 
-mapfile -t cases < <(find "$ROOT/tests/memory" -maxdepth 1 -type f -name '*.php' | sort)
+cases=()
+while IFS= read -r f; do
+	[ -n "$f" ] && cases+=("$f")
+done < <(find "$ROOT/tests/memory" -maxdepth 1 -type f -name '*.php' | sort)
 [ "${#cases[@]}" -gt 0 ] || { echo "FAIL: no cases under tests/memory/" >&2; exit 2; }
 
 failures=0

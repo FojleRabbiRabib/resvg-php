@@ -24,7 +24,10 @@ if [ -n "${PHP_VERSION:-}" ] && command -v "php$PHP_VERSION" >/dev/null 2>&1; th
 	PHP_BIN="php$PHP_VERSION"
 fi
 
-mapfile -t examples < <(find "$ROOT/examples" -maxdepth 1 -type f -name '*.php' | sort)
+examples=()
+while IFS= read -r f; do
+	[ -n "$f" ] && examples+=("$f")
+done < <(find "$ROOT/examples" -maxdepth 1 -type f -name '*.php' | sort)
 [ "${#examples[@]}" -gt 0 ] || { echo "FAIL: no examples under examples/" >&2; exit 2; }
 
 failures=0
