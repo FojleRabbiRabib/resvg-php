@@ -19,8 +19,12 @@ command -v cargo >/dev/null 2>&1 || {
 
 SRC="$("$ROOT/tools/fetch-resvg.sh")"
 
-cargo build --release --locked --manifest-path "$SRC/Cargo.toml" -p resvg --bin resvg
-cargo build --release --locked --manifest-path "$SRC/Cargo.toml" -p usvg --bin usvg
+ORACLE_FLAGS="--locked"
+if [ "${OFFLINE:-0}" = "1" ]; then
+	ORACLE_FLAGS="--frozen"
+fi
+cargo build --release $ORACLE_FLAGS --manifest-path "$SRC/Cargo.toml" -p resvg --bin resvg
+cargo build --release $ORACLE_FLAGS --manifest-path "$SRC/Cargo.toml" -p usvg --bin usvg
 echo "oracle: $SRC/target/release/resvg"
 echo "oracle: $SRC/target/release/usvg"
 

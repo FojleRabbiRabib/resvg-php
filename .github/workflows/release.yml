@@ -81,8 +81,6 @@ jobs:
   build-musl:
     name: Build PHP ${{ matrix.php }} musl (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
-    container:
-      image: php:${{ matrix.php }}-alpine
     strategy:
       fail-fast: false
       matrix:
@@ -106,21 +104,8 @@ jobs:
             arch: aarch64
             os: ubuntu-22.04-arm
     steps:
-      - name: Install build dependencies
-        run: apk add --no-cache bash gcc make musl-dev binutils autoconf curl git ca-certificates zip ttf-dejavu
-
       - name: Check out source
         uses: actions/checkout@v7.0.1
-
-      - name: Install Rust
-        shell: sh
-        run: |
-          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98.1
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-
-      - name: Fetch the pinned resvg source
-        shell: sh
-        run: tools/fetch-resvg.sh
 
       - name: Restore Rust dependency cache
         uses: Swatinem/rust-cache@v2.9.2
@@ -131,12 +116,23 @@ jobs:
             native
             vendor-src/resvg-0.48.1
 
+      # The Alpine environment runs through an explicit docker step rather than
+      # a job-level container: GitHub cannot execute node-based actions inside
+      # containers on arm64 runners, and checkout/artifact upload must stay on
+      # the host.
       - name: Build, gate, and package PHP ${{ matrix.php }} (musl)
-        shell: sh
         env:
-          ABIS: ${{ matrix.php }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: tools/release-build.sh
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD":/src -w /src "php:${{ matrix.php }}-alpine" sh -c '
+            set -eu
+            apk add --no-cache bash gcc make musl-dev binutils autoconf curl git ca-certificates zip ttf-dejavu
+            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98.1 >/dev/null 2>&1
+            export PATH="$HOME/.cargo/bin:$PATH"
+            tools/fetch-resvg.sh >/dev/null
+            ABIS=${{ matrix.php }} RELEASE_TAG="$RELEASE_TAG" tools/release-build.sh
+          '
 
       - name: Upload release assets
         uses: actions/upload-artifact@v7.0.1
@@ -147,30 +143,12 @@ jobs:
           retention-days: 3
 
   build-macos:
-    name: Build PHP ${{ matrix.php }} (${{ matrix.arch }}, macOS)
-    runs-on: ${{ matrix.os }}
+    name: Build PHP ${{ matrix.php }} (macOS arm64)
+    runs-on: macos-15
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - php: '8.3'
-            arch: arm64
-            os: macos-15
-          - php: '8.4'
-            arch: arm64
-            os: macos-15
-          - php: '8.5'
-            arch: arm64
-            os: macos-15
-          - php: '8.3'
-            arch: x86_64
-            os: macos-15-intel
-          - php: '8.4'
-            arch: x86_64
-            os: macos-15-intel
-          - php: '8.5'
-            arch: x86_64
-            os: macos-15-intel
+        php: ['8.3', '8.4', '8.5']
     steps:
       - name: Check out source
         uses: actions/checkout@v7.0.1
@@ -192,7 +170,7 @@ jobs:
       - name: Restore Rust dependency cache
         uses: Swatinem/rust-cache@v2.9.2
         with:
-          shared-key: resvg-build-darwin-${{ matrix.arch }}
+          shared-key: resvg-build-darwin-arm64
           add-job-id-key: false
           workspaces: |
             native
@@ -207,14 +185,54 @@ jobs:
       - name: Upload release assets
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: release-php${{ matrix.php }}-darwin-${{ matrix.arch }}
+          name: release-php${{ matrix.php }}-darwin-arm64
+          path: build/dist/*
+          if-no-files-found: error
+          retention-days: 3
+
+  offline-bundle:
+    name: Build offline source bundle
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: '8.3'
+          tools: none
+          coverage: none
+          extensions: pcntl
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.98.1
+
+      - name: Build the offline source bundle
+        env:
+          OUT_DIR: build/dist
+        run: tools/vendor-offline.sh --tarball
+
+      - name: Prove the bundle builds offline from a fresh extraction
+        run: |
+          set -euo pipefail
+          extract="$RUNNER_TEMP/offline-proof"
+          mkdir -p "$extract"
+          tar -xzf build/dist/resvg-php-*-offline.tar.gz -C "$extract"
+          cd "$extract"/resvg-php-*-offline
+          OFFLINE=1 SKIP_GATE=1 tools/build.sh 8.3
+
+      - name: Upload the offline bundle
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: release-offline
           path: build/dist/*
           if-no-files-found: error
           retention-days: 3
 
   finalize:
     name: Assemble and publish release
-    needs: [build, build-musl, build-macos]
+    needs: [build, build-musl, build-macos, offline-bundle]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -233,7 +251,7 @@ jobs:
       - name: Download built assets
         uses: actions/download-artifact@v8.0.1
         with:
-          pattern: release-php*
+          pattern: release-*
           merge-multiple: true
           path: build/dist
 

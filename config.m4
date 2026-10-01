@@ -12,6 +12,12 @@ PHP_ARG_ENABLE([resvg],
     [Enable resvg (SVG rasterization on a vendored resvg core)])],
   [no])
 
+PHP_ARG_ENABLE([resvg-offline],
+  [whether to build the resvg extension without network access],
+  [AS_HELP_STRING([--enable-resvg-offline],
+    [Resolve Rust crates from native/vendor-crates instead of crates.io])],
+  [no])
+
 if test "$PHP_RESVG" != "no"; then
 
   dnl Toolchain check. resvg 0.48.x is edition 2024 (MSRV 1.85); refuse a
@@ -116,6 +122,17 @@ if test "$PHP_RESVG" != "no"; then
     AC_MSG_ERROR([vendored resvg source is missing at $RESVG_VENDOR_DIR. It is fetched and SHA-256-verified by tools/build.sh; run that once (or fetch it there) before building.])
   fi
 
+  dnl Offline mode: crates resolve from native/vendor-crates (created by
+  dnl tools/vendor-offline.sh) and cargo runs --frozen so it fails loudly
+  dnl rather than reaching for the network.
+  RESVG_CARGO_FLAGS="--locked"
+  if test "$PHP_RESVG_OFFLINE" != "no"; then
+    RESVG_CARGO_FLAGS="--frozen"
+    if test ! -d "$RESVG_NATIVE_DIR/vendor-crates"; then
+      AC_MSG_ERROR([offline build requested but $RESVG_NATIVE_DIR/vendor-crates is absent; create it with tools/vendor-offline.sh.])
+    fi
+  fi
+
   dnl Link hardening and the export map, so the canonical link hides the
   dnl internal symbols and matches tools/build.sh's relink. On ELF (Linux/musl)
   dnl `resvg.map` exports exactly `get_module`; on Mach-O (macOS) ld64 takes
@@ -145,6 +162,7 @@ if test "$PHP_RESVG" != "no"; then
 
   PHP_ADD_MAKEFILE_FRAGMENT
   PHP_SUBST(RESVG_CARGO)
+  PHP_SUBST(RESVG_CARGO_FLAGS)
   PHP_SUBST(RESVG_NATIVE_DIR)
   PHP_SUBST(RESVG_ARCHIVE)
   PHP_SUBST(RESVG_SHARED_LIBADD)
