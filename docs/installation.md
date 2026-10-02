@@ -41,7 +41,6 @@ extension=/opt/resvg-php/resvg-php8.3-linux-x86_64.so
 ; or /opt/resvg-php/resvg-php8.3-linux-aarch64.so on aarch64
 ; or /opt/resvg-php/resvg-php8.3-linux-musl-x86_64.so on Alpine (musl)
 ; or /opt/resvg-php/resvg-php8.3-darwin-arm64.so on macOS (Apple silicon)
-; or C:\php\ext\resvg-php8.3-windows-x86_64.dll on Windows
 ```
 
 The macOS builds are ad-hoc signed Mach-O bundles; `shasum -c SHA256SUMS`
@@ -49,14 +48,6 @@ verifies them (macOS ships `shasum` rather than `sha256sum`). PIE resolves
 macOS installs from the `-darwin-bsdlibc-` archives automatically. Prebuilt
 macOS assets target Apple silicon; on Intel Macs, PIE's source-build fallback
 works (Homebrew PHP plus Rust 1.85+).
-
-Windows builds are x64 MSVC, non-thread-safe, and per-PHP-toolset: PHP 8.3's
-official Windows builds use VS16 (Visual Studio 2019) and 8.4+/8.5 use VS17
-(2022). PIE reads that segment from the target PHP and resolves the matching
-archive (`php_resvg-<version>-8.3-nts-vs16-x86_64.zip`, and so on); for a manual
-install, take the DLL out of the archive whose compiler segment matches
-`php -i`'s `PHP Extension Build`. The extension contains no MSVC runtime beyond
-the one PHP itself links (`vcruntime140.dll`).
 
 A `.so` is ABI-bound to its PHP build's thread safety: an NTS extension will not
 load under a thread-safe PHP, and vice versa. PIE selects the matching archive
@@ -72,16 +63,13 @@ php -m | grep resvg
 php -r 'echo Resvg\Renderer::version(), PHP_EOL;'
 ```
 
-The extension is a single self-contained module: on Linux and macOS it depends
-on nothing beyond the C library (glibc 2.28 or newer for the glibc builds, any
-musl for the Alpine ones; PIE resolves the matching archive automatically), and
-on Windows only on the MSVC runtime PHP already loads. It must match your PHP
-major.minor ABI exactly (a build for 8.3 refuses to load under 8.4 and vice
-versa). The glibc floor is the glibc of the host that built the artifact — 2.28
-for current prebuilts — and each release provenance record names the highest
+The extension is a single self-contained `.so`: it has no runtime dependency
+beyond the C library (glibc 2.28 or newer for the glibc builds, any musl for the
+Alpine ones; PIE resolves the matching archive automatically), and it must match
+your PHP major.minor ABI exactly (a build for 8.3 refuses to load under 8.4 and
+vice versa). The glibc floor is the glibc of the host that built the artifact —
+2.28 for current prebuilts — and each release provenance record names the highest
 imported symbol version. On minimal Alpine containers where no fonts are
-pre-installed, install `ttf-dejavu` (or supply custom fonts via `fontFiles`) so
-text is rendered. On minimal Alpine containers where no fonts are
 pre-installed, install `ttf-dejavu` (or supply custom fonts via `fontFiles`) so
 text is rendered.
 

@@ -25,8 +25,6 @@ if [ "${OFFLINE:-0}" = "1" ]; then
 fi
 cargo build --release $ORACLE_FLAGS --manifest-path "$SRC/Cargo.toml" -p resvg --bin resvg
 cargo build --release $ORACLE_FLAGS --manifest-path "$SRC/Cargo.toml" -p usvg --bin usvg
-# Executables carry the .exe suffix on Windows (Git Bash / MSYS hosts).
-case "$(uname -s)" in CYGWIN*|MINGW*|MSYS*) EXE=".exe" ;; *) EXE="" ;; esac
-echo "oracle: $SRC/target/release/resvg$EXE"
-echo "oracle: $SRC/target/release/usvg$EXE"
+echo "oracle: $SRC/target/release/resvg"
+echo "oracle: $SRC/target/release/usvg"
 

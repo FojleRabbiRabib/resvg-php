@@ -66,20 +66,6 @@ PHP_CONFIG_BIN="php-config$PHPV"
 command -v "$PHP_BIN" >/dev/null 2>&1 || PHP_BIN=php
 command -v "$PHPIZE_BIN" >/dev/null 2>&1 || PHPIZE_BIN=phpize
 command -v "$PHP_CONFIG_BIN" >/dev/null 2>&1 || PHP_CONFIG_BIN=php-config
-# A missing toolchain must fail loudly: the path substitutions below return
-# non-zero under `set -e` and would otherwise abort with no output.
-command -v "$PHP_BIN" >/dev/null 2>&1 || {
-	echo "FAIL: PHP $PHPV binary not found (looked for php$PHPV, then php)" >&2
-	exit 1
-}
-command -v "$PHPIZE_BIN" >/dev/null 2>&1 || {
-	echo "FAIL: phpize for PHP $PHPV not found (looked for phpize$PHPV, then phpize)" >&2
-	exit 1
-}
-command -v "$PHP_CONFIG_BIN" >/dev/null 2>&1 || {
-	echo "FAIL: php-config for PHP $PHPV not found (looked for php-config$PHPV, then php-config)" >&2
-	exit 1
-}
 PHP_BIN_PATH="$(command -v "$PHP_BIN")"
 PHPIZE_BIN_PATH="$(command -v "$PHPIZE_BIN")"
 PHP_CONFIG_BIN_PATH="$(command -v "$PHP_CONFIG_BIN")"

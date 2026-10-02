@@ -22,17 +22,6 @@ Semantic Versioning.
 
 ### Added
 
-- Windows x64 (MSVC, non-thread-safe) as a supported platform: CI builds and
-  gates all three PHP ABIs on Windows runners with the MSVC toolchain, and
-  releases carry PIE archives (`php_resvg-<version>-8.N-nts-vs<NN>-x86_64.zip`
-  wrapping `php_resvg.dll`) plus bare DLLs and provenance records. The
-  compiler segment follows the target PHP build — vs16 for 8.3, vs17 for
-  8.4/8.5 — because PIE matches it against the PHP installation.
-  `config.w32` gives the canonical `phpize` path the same prelink steps as
-  `config.m4` (toolchain check, shim build, vendored-source guard, link of the
-  shim archive and Rust's required system libraries), and
-  `tools/build-windows.ps1` drives it end to end with PE export, dependency,
-  ASLR, and DEP gates.
 - Offline / air-gapped source builds: `tools/vendor-offline.sh` vendors every
   Rust crate into `native/vendor-crates` and proves resolution with a frozen
   cargo build; with that directory present, `./configure --enable-resvg` and

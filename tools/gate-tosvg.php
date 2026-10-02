@@ -84,7 +84,7 @@ foreach ($rows as $row) {
     }
 
     $cmd = sprintf(
-        '%s %s %s %s ' . (PHP_OS_FAMILY === 'Windows' ? '2>NUL' : '2>/dev/null'),
+        '%s %s %s %s 2>/dev/null',
         escapeshellarg($oracle),
         implode(' ', array_map('escapeshellarg', $row['cli'] ?? [])),
         escapeshellarg($row['file']),

@@ -189,49 +189,6 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  build-windows:
-    name: Build PHP ${{ matrix.php }} (Windows x64)
-    runs-on: windows-2025
-    strategy:
-      fail-fast: false
-      matrix:
-        php: ['8.3', '8.4', '8.5']
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v7.0.1
-
-      - name: Activate the MSVC environment
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@1.98.1
-
-      - name: Fetch the pinned resvg source
-        run: bash tools/fetch-resvg.sh
-
-      - name: Restore Rust dependency cache
-        uses: Swatinem/rust-cache@v2.9.2
-        with:
-          shared-key: resvg-build-windows-x64
-          add-job-id-key: false
-          workspaces: |
-            native
-            vendor-src/resvg-0.48.1
-
-      - name: Build, gate, and package PHP ${{ matrix.php }} (Windows)
-        shell: pwsh
-        run: tools/build-windows.ps1 -PhpVersion ${{ matrix.php }} -Package -ReleaseTag "${{ github.ref_name }}"
-
-      - name: Upload release assets
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: release-php${{ matrix.php }}-windows-x86_64
-          path: build/dist/*
-          if-no-files-found: error
-          retention-days: 3
-
   offline-bundle:
     name: Build offline source bundle
     runs-on: ubuntu-22.04
@@ -256,7 +213,6 @@ jobs:
         run: tools/vendor-offline.sh --tarball
 
       - name: Prove the bundle builds offline from a fresh extraction
-        shell: bash
         run: |
           set -euo pipefail
           extract="$RUNNER_TEMP/offline-proof"
@@ -275,7 +231,7 @@ jobs:
 
   finalize:
     name: Assemble and publish release
-    needs: [build, build-musl, build-macos, build-windows, offline-bundle]
+    needs: [build, build-musl, build-macos, offline-bundle]
     runs-on: ubuntu-22.04
     permissions:
       contents: write

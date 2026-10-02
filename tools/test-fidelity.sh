@@ -16,18 +16,14 @@ SO="${1:-}"
 [ -f "$SO" ] || { echo "FAIL: $SO not found" >&2; exit 2; }
 
 RESVG_VERSION="${RESVG_VERSION:-0.48.1}"
-# The oracle CLIs carry the .exe suffix on Windows hosts (Git Bash / MSYS).
-case "$(uname -s)" in CYGWIN*|MINGW*|MSYS*) EXE=".exe" ;; *) EXE="" ;; esac
-ORACLE="$ROOT/vendor-src/resvg-$RESVG_VERSION/target/release/resvg$EXE"
-USVG_ORACLE="$ROOT/vendor-src/resvg-$RESVG_VERSION/target/release/usvg$EXE"
+ORACLE="$ROOT/vendor-src/resvg-$RESVG_VERSION/target/release/resvg"
+USVG_ORACLE="$ROOT/vendor-src/resvg-$RESVG_VERSION/target/release/usvg"
 if [ ! -x "$ORACLE" ] || [ ! -x "$USVG_ORACLE" ]; then
 	"$ROOT/tools/build-oracle.sh"
 fi
 
 PHP_BIN="${PHP_BIN:-php}"
-# The artifact may be resvg-php8.3.dll (Windows), resvg-php8.3.so, or a
-# -debug variant; PHP_VERSION pins which php binary loads it.
-if [ -z "${PHP_VERSION:-}" ] && [[ "$SO" =~ php(8\.[3-5])(-debug)?\.(so|dll)$ ]]; then
+if [ -z "${PHP_VERSION:-}" ] && [[ "$SO" =~ php(8\.[3-5])(-debug)?\.so$ ]]; then
 	PHP_VERSION="${BASH_REMATCH[1]}"
 fi
 if [ -n "${PHP_VERSION:-}" ] && command -v "php$PHP_VERSION" >/dev/null 2>&1; then

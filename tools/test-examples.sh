@@ -17,7 +17,7 @@ SO="${1:-}"
 [ -f "$SO" ] || { echo "FAIL: $SO not found" >&2; exit 2; }
 
 PHP_BIN="${PHP_BIN:-php}"
-if [ -z "${PHP_VERSION:-}" ] && [[ "$SO" =~ php(8\.[3-5])(-debug)?\.(so|dll)$ ]]; then
+if [ -z "${PHP_VERSION:-}" ] && [[ "$SO" =~ php(8\.[3-5])(-debug)?\.so$ ]]; then
 	PHP_VERSION="${BASH_REMATCH[1]}"
 fi
 if [ -n "${PHP_VERSION:-}" ] && command -v "php$PHP_VERSION" >/dev/null 2>&1; then
