@@ -157,9 +157,66 @@ assert_macho() {
 	echo "   Mach-O OK (single export, libSystem only, no rpath, valid signature)"
 }
 
-# The ELF gates live in tools/elf-gates.sh, shared with the rpm/deb packaging
-# drivers so the gates cannot drift between the artifact paths.
-source "$ROOT/tools/elf-gates.sh"
+assert_elf() {
+	local exports needed library glibc_versions glibc_max
+
+	exports="$(nm -D --defined-only "$OUT" | awk '{print $3}' | sed '/^$/d' | sort -u)"
+	echo "   dynamic exports: ${exports//$'\n'/ }"
+	[ "$exports" = "get_module" ] || {
+		echo "FAIL: dynamic export table must be exactly {get_module}" >&2
+		exit 1
+	}
+	if nm -D --defined-only "$OUT" | awk '{print $3}' | grep -qE '^(resvg_php_|RspTree|usvg)'; then
+		echo "FAIL: renderer symbols leaked into the dynamic table" >&2
+		exit 1
+	fi
+
+	# POSIX-portable bracket stripping: `]` must come first in the set; the
+	# backslash-escaped spelling is undefined for BusyBox awk (Alpine).
+	needed="$(readelf -d "$OUT" | awk '/NEEDED/{gsub(/[][]/, "", $NF); print $NF}')"
+	echo "   NEEDED: ${needed//$'\n'/ }"
+	while IFS= read -r library; do
+		[ -z "$library" ] && continue
+		case "$library" in
+			# The glibc dynamic loader's soname is arch-specific (ld-linux-x86-64.so.2
+			# on x86-64, ld-linux-aarch64.so.1 on aarch64); match it by pattern. musl
+			# (Alpine) merges libc and the loader into libc.musl-*.so.* / ld-musl-*.
+			libc.so.6|libm.so.6|libpthread.so.0|libdl.so.2|ld-linux-*.so.*|libgcc_s.so.1) ;;
+			libc.musl-*.so.*|ld-musl-*.so.*) ;;
+			*) echo "FAIL: unexpected dynamic dependency: $library" >&2; exit 1 ;;
+		esac
+	done <<< "$needed"
+
+	if readelf -d "$OUT" | grep -qE '\((RPATH|RUNPATH)\)'; then
+		echo "FAIL: $OUT must not contain RPATH/RUNPATH" >&2
+		exit 1
+	fi
+	readelf -W -l "$OUT" | grep -q 'GNU_RELRO' || { echo "FAIL: GNU_RELRO is absent" >&2; exit 1; }
+	readelf -W -l "$OUT" | awk '/GNU_STACK/ { if ($0 ~ /E/) exit 1; found=1 } END { exit found ? 0 : 1 }' || {
+		echo "FAIL: GNU_STACK is executable or absent" >&2
+		exit 1
+	}
+	readelf -d "$OUT" | grep -qE '(BIND_NOW|FLAGS.*NOW)' || { echo "FAIL: BIND_NOW is absent" >&2; exit 1; }
+
+	glibc_versions="$(objdump -T "$OUT" | grep -oE 'GLIBC_[0-9.]+' | sort -Vu || true)"
+	glibc_max="$(printf '%s\n' "$glibc_versions" | tail -1)"
+	echo "   highest imported glibc symbol: ${glibc_max:-none}"
+	# Release builds on the controlled old-glibc host declare a floor
+	# (GLIBC_FLOOR=2.28); the artifact must not import anything newer, so a
+	# toolchain bump cannot silently raise the floor. Dev builds leave it
+	# unset and only print.
+	if [ -n "${GLIBC_FLOOR:-}" ] && [ -n "$glibc_max" ]; then
+		# Violation iff the floor sorts strictly before the artifact's maximum:
+		# when floor < max the sorted head is the floor line, not the max line.
+		lowest="$(printf '%s\n%s\n' "$glibc_max" "GLIBC_$GLIBC_FLOOR" | sort -V | head -1)"
+		if [ "$lowest" != "$glibc_max" ]; then
+			echo "FAIL: artifact imports $glibc_max, exceeding the declared floor GLIBC_$GLIBC_FLOOR" >&2
+			exit 1
+		fi
+		echo "   glibc floor gate OK (<= GLIBC_$GLIBC_FLOOR)"
+	fi
+	echo "   ELF hardening OK (RELRO, BIND_NOW, non-exec stack, no rpath)"
+}
 
 # Core count: `nproc` on Linux, `sysctl -n hw.ncpu` on macOS.
 num_cpus() {
@@ -275,7 +332,7 @@ echo "   built: $OUT ($(du -h "$OUT" | cut -f1))"
 echo ">> [5/5] validate ABI, exports, dependencies, and loading"
 verify_loadable
 if [ -n "$ELF_ARTIFACT" ]; then
-	assert_elf_artifact "$OUT"
+	assert_elf
 else
 	assert_macho
 fi
