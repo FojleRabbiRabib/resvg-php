@@ -71,8 +71,10 @@ foreach ($rows as $row) {
         exit(2);
     }
 
+    // Silence the oracle's stderr: cmd.exe (Windows) and /bin/sh disagree on
+    // the null-device spelling, and exec() routes through the platform shell.
     $cmd = sprintf(
-        '%s %s %s %s 2>/dev/null',
+        '%s %s %s %s ' . (PHP_OS_FAMILY === 'Windows' ? '2>NUL' : '2>/dev/null'),
         escapeshellarg($oracle),
         implode(' ', array_map('escapeshellarg', $row['cli'] ?? [])),
         escapeshellarg($row['file']),

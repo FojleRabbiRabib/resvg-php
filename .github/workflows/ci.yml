@@ -284,6 +284,53 @@ jobs:
       - name: Run the multi-threaded race and leak gate
         run: tools/test-zts.sh
 
+  build-windows:
+    name: Build and gate PHP ${{ matrix.php }} (Windows x64)
+    needs: [quality]
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4', '8.5']
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+
+      - name: Activate the MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.98.1
+
+      # The pinned source must exist before the cache restore: rust-cache
+      # treats it as a workspace and errors (restoring nothing) otherwise.
+      - name: Fetch the pinned resvg source
+        run: bash tools/fetch-resvg.sh
+
+      - name: Restore Rust dependency cache
+        uses: Swatinem/rust-cache@v2.9.2
+        with:
+          shared-key: resvg-build-windows-x64
+          add-job-id-key: false
+          workspaces: |
+            native
+            vendor-src/resvg-0.48.1
+
+      - name: Parse-check the build script
+        shell: pwsh
+        run: |
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            "$env:GITHUB_WORKSPACE/tools/build-windows.ps1", [ref]$null, [ref]$errors)
+          if ($errors) { $errors | ForEach-Object { Write-Host "parse: $($_.Message)" }; exit 1 }
+          Write-Host 'PowerShell parse OK'
+
+      - name: Build, gate, and validate the PE artifact
+        shell: pwsh
+        run: tools/build-windows.ps1 -PhpVersion ${{ matrix.php }}
+
   memory:
     name: Valgrind memory gate (PHP 8.3)
     needs: [build]
