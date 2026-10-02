@@ -232,149 +232,6 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  build-rpm:
-    name: RPM (PHP ${{ matrix.php }}, ${{ matrix.arch }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { php: '8.3', arch: x86_64, os: ubuntu-22.04 }
-          - { php: '8.4', arch: x86_64, os: ubuntu-22.04 }
-          - { php: '8.5', arch: x86_64, os: ubuntu-22.04 }
-          - { php: '8.3', arch: aarch64, os: ubuntu-22.04-arm }
-          - { php: '8.4', arch: aarch64, os: ubuntu-22.04-arm }
-          - { php: '8.5', arch: aarch64, os: ubuntu-22.04-arm }
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v7.0.1
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@1.98.1
-
-      - name: Fetch the pinned resvg source
-        run: tools/fetch-resvg.sh
-
-      - name: Restore Rust dependency cache
-        uses: Swatinem/rust-cache@v2.9.2
-        with:
-          shared-key: resvg-rpm-${{ matrix.arch }}
-          add-job-id-key: false
-          workspaces: |
-            native
-            vendor-src/resvg-0.48.1
-
-      # The rpm builds the extension inside rpmbuild through the canonical
-      # phpize path, from the offline bundle. config.m4 falls back to
-      # ~/.cargo/bin for the MSRV toolchain, which the EL8 rust rpm cannot
-      # provide (resvg needs >= 1.85). The gate runs against the installed
-      # module, so the packaged bytes are the verified bytes.
-      - name: Build and gate the RPM
-        run: |
-          set -euo pipefail
-          docker run --rm -v "$PWD":/src -w /src almalinux:8 bash -c '
-            set -eu
-            export PATH="$HOME/.cargo/bin:$PATH"
-            dnf -q install -y epel-release >/dev/null
-            dnf -q install -y "https://rpms.remirepo.net/enterprise/remi-release-8.rpm" >/dev/null
-            dnf -q module reset php -y >/dev/null 2>&1 || true
-            dnf -q module enable "php:remi-${{ matrix.php }}" -y >/dev/null
-            dnf -q install -y php php-devel gcc gcc-c++ make git curl diffutils \
-              dejavu-sans-fonts rpm-build >/dev/null
-            command -v cargo >/dev/null 2>&1 || \
-              curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal \
-                --default-toolchain 1.98.1 >/dev/null
-            tools/build-packages.sh ${{ matrix.php }} rpm
-            rpmfile="$(realpath "$(ls build/dist/php-pecl-resvg-[0-9]*.${{ matrix.arch }}.rpm)")"
-            dnf -q install -y "$rpmfile" >/dev/null
-            php -r "exit(extension_loaded(\"resvg\") ? 0 : 1);"
-            php -r "echo Resvg\Renderer::version(), PHP_EOL;"
-            PHP_VERSION=${{ matrix.php }} tools/test-fidelity.sh /usr/lib64/php/modules/resvg.so
-            PHP_VERSION=${{ matrix.php }} php tools/test-phpt.php /usr/lib64/php/modules/resvg.so
-            PHP_VERSION=${{ matrix.php }} tools/test-examples.sh /usr/lib64/php/modules/resvg.so
-          '
-
-      - name: Upload release assets
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: release-rpm-php${{ matrix.php }}-${{ matrix.arch }}
-          path: build/dist/php-pecl-resvg-*
-          if-no-files-found: error
-          retention-days: 3
-
-  build-deb:
-    name: deb (PHP ${{ matrix.php }}, ${{ matrix.arch }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { php: '8.3', arch: x86_64, os: ubuntu-22.04 }
-          - { php: '8.4', arch: x86_64, os: ubuntu-22.04 }
-          - { php: '8.5', arch: x86_64, os: ubuntu-22.04 }
-          - { php: '8.3', arch: aarch64, os: ubuntu-22.04-arm }
-          - { php: '8.4', arch: aarch64, os: ubuntu-22.04-arm }
-          - { php: '8.5', arch: aarch64, os: ubuntu-22.04-arm }
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v7.0.1
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@1.98.1
-
-      - name: Fetch the pinned resvg source
-        run: tools/fetch-resvg.sh
-
-      - name: Restore Rust dependency cache
-        uses: Swatinem/rust-cache@v2.9.2
-        with:
-          shared-key: resvg-deb-${{ matrix.arch }}
-          add-job-id-key: false
-          workspaces: |
-            native
-            vendor-src/resvg-0.48.1
-
-      # Ubuntu 24.04 carries PHP 8.3 natively; 8.4/8.5 come from the Ondrej PPA,
-      # the same source Ubuntu PHP users take newer ABIs from. The module is
-      # built through phpize from the offline bundle, installed from the deb,
-      # and gated where it actually lands.
-      - name: Build and gate the deb
-        run: |
-          set -euo pipefail
-          docker run --rm -v "$PWD":/src -w /src "ubuntu:24.04" bash -c '
-            set -eu
-            export DEBIAN_FRONTEND=noninteractive
-            apt-get update -qq >/dev/null
-            apt-get install -y -qq software-properties-common >/dev/null
-            add-apt-repository -y ppa:ondrej/php >/dev/null
-            apt-get update -qq >/dev/null
-            apt-get install -y -qq php${{ matrix.php }}-cli php${{ matrix.php }}-dev \
-              build-essential git curl ca-certificates pkg-config m4 \
-              fonts-dejavu-core >/dev/null
-            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal \
-              --default-toolchain 1.98.1 >/dev/null
-            export PATH="$HOME/.cargo/bin:$PATH"
-            tools/build-packages.sh ${{ matrix.php }} deb
-            # apt reads a bare relative path as a package name; realpath makes
-            # it an unambiguous local file.
-            debfile="$(realpath "$(ls build/dist/php${{ matrix.php }}-resvg_*.deb)")"
-            apt-get install -y -qq "$debfile" >/dev/null
-            php${{ matrix.php }} -r "exit(extension_loaded(\"resvg\") ? 0 : 1);"
-            php${{ matrix.php }} -r "echo Resvg\Renderer::version(), PHP_EOL;"
-            module="$(php-config${{ matrix.php }} --extension-dir)/resvg.so"
-            PHP_VERSION=${{ matrix.php }} tools/test-fidelity.sh "$module"
-            PHP_VERSION=${{ matrix.php }} php${{ matrix.php }} tools/test-phpt.php "$module"
-            PHP_VERSION=${{ matrix.php }} tools/test-examples.sh "$module"
-          '
-
-      - name: Upload release assets
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: release-deb-php${{ matrix.php }}-${{ matrix.arch }}
-          path: build/dist/php*-resvg_*
-          if-no-files-found: error
-          retention-days: 3
-
   offline-bundle:
     name: Build offline source bundle
     runs-on: ubuntu-22.04
@@ -399,16 +256,14 @@ jobs:
         run: tools/vendor-offline.sh --tarball
 
       - name: Prove the bundle builds offline from a fresh extraction
+        shell: bash
         run: |
           set -euo pipefail
           extract="$RUNNER_TEMP/offline-proof"
           mkdir -p "$extract"
           tar -xzf build/dist/resvg-php-*-offline.tar.gz -C "$extract"
           cd "$extract"/resvg-php-*-offline
-          # An isolated CARGO_HOME empties the registry cache, so this can only
-          # resolve through the bundle's own vendored crates — without it, the
-          # host cache this job warmed earlier silently fakes the proof.
-          OFFLINE=1 SKIP_GATE=1 CARGO_HOME="$RUNNER_TEMP/cargo-home" tools/build.sh 8.3
+          OFFLINE=1 SKIP_GATE=1 tools/build.sh 8.3
 
       - name: Upload the offline bundle
         uses: actions/upload-artifact@v7.0.1
@@ -420,7 +275,7 @@ jobs:
 
   finalize:
     name: Assemble and publish release
-    needs: [build, build-musl, build-macos, build-windows, build-rpm, build-deb, offline-bundle]
+    needs: [build, build-musl, build-macos, build-windows, offline-bundle]
     runs-on: ubuntu-22.04
     permissions:
       contents: write

@@ -70,18 +70,6 @@ cosign verify-blob --bundle resvg-php8.3-linux-x86_64.so.bundle \
 extension=/path/to/resvg-php8.3-linux-x86_64.so
 ```
 
-### Distro packages
-
-Releases also carry `php-pecl-resvg` RPMs (EL8+, Remi PHP, built on AlmaLinux 8
-so the module loads wherever Remi's PHP does) and `php8.N-resvg` debs (Ubuntu
-24.04, each built for its PHP API). Both install the module enabled, and both
-are gated against the upstream resvg oracle before they are published:
-
-```sh
-dnf install ./php-pecl-resvg-0.2.0-1.el8.x86_64.rpm
-apt install ./php8.3-resvg_0.2.0-1~noble_amd64.deb
-```
-
 ### From source
 
 ```sh
