@@ -30,7 +30,8 @@ deterministically — the same input produces the same bytes on every machine.
 ## Requirements
 
 - PHP 8.3, 8.4, or 8.5, non-thread-safe (NTS) or thread-safe (ZTS) builds
-- Linux x86-64 or aarch64 with glibc 2.28+ or musl; macOS on Apple silicon
+- Linux x86-64 or aarch64 with glibc 2.28+ or musl; macOS on Apple silicon;
+  Windows x64 (MSVC, NTS)
 - For building from source: Rust 1.85 or newer, and a PHP development toolchain
 
 ZTS builds are validated: the extension is built and gated under the thread-safe
@@ -53,8 +54,11 @@ pie install resvg-php/resvg
 
 Download the assets for your PHP ABI from the releases page. Each release carries
 a PIE archive per ABI (`php_resvg-<version>_php8.N-<arch>-linux-glibc-nts.zip`
-wrapping `resvg.so`), a bare `resvg-php8.N-linux-<arch>.so` for direct download,
-`SHA256SUMS`, and cosign signature bundles. Verify and add it to your `php.ini`:
+wrapping `resvg.so`; Windows archives are
+`php_resvg-<version>-8.N-nts-vs<NN>-x86_64.zip` wrapping the DLL, vs16 for PHP
+8.3 and vs17 for 8.4+), a bare `resvg-php8.N-linux-<arch>.so` for direct
+download, `SHA256SUMS`, and cosign signature bundles. Verify and add it to your
+`php.ini`:
 
 ```sh
 sha256sum -c SHA256SUMS
