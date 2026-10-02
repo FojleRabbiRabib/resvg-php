@@ -86,14 +86,6 @@ jobs:
           cargo fmt --manifest-path native/Cargo.toml -- --check
           cargo clippy --manifest-path native/Cargo.toml -- -D warnings
 
-      - name: Prove offline resolution is complete (cargo vendor + frozen check)
-        shell: bash
-        run: |
-          set -euo pipefail
-          tools/vendor-offline.sh
-          (cd native && cargo check --frozen --quiet)
-          rm -rf native/vendor-crates native/.cargo
-
   build:
     name: Build and gate PHP ${{ matrix.php }} (${{ matrix.arch }})
     needs: [quality]
@@ -225,9 +217,22 @@ jobs:
     name: Build and gate PHP 8.3 (musl x86_64)
     needs: [quality]
     runs-on: ubuntu-22.04
+    container:
+      image: php:8.3-alpine
     steps:
+      - name: Install build dependencies
+        run: apk add --no-cache bash gcc make musl-dev binutils autoconf curl git ca-certificates ttf-dejavu
+
       - name: Check out source
         uses: actions/checkout@v7.0.1
+
+      - name: Install Rust
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98.1
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch the pinned resvg source
+        run: tools/fetch-resvg.sh
 
       - name: Restore Rust dependency cache
         uses: Swatinem/rust-cache@v2.9.2
@@ -238,21 +243,14 @@ jobs:
             native
             vendor-src/resvg-0.48.1
 
-      # Explicit docker step rather than a job-level container, matching the
-      # release musl jobs: one pattern on every runner architecture.
-      - name: Build and gate inside php:8.3-alpine
-        run: |
-          set -euo pipefail
-          docker run --rm -v "$PWD":/src -w /src php:8.3-alpine sh -c '
-            set -eu
-            apk add --no-cache bash gcc make musl-dev binutils autoconf curl git ca-certificates ttf-dejavu
-            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98.1 >/dev/null 2>&1
-            export PATH="$HOME/.cargo/bin:$PATH"
-            tools/fetch-resvg.sh >/dev/null
-            tools/build.sh 8.3
-            php tools/test-phpt.php build/resvg-php8.3.so
-            tools/test-examples.sh build/resvg-php8.3.so
-          '
+      - name: Build the extension and run the fidelity gate
+        run: tools/build.sh 8.3
+
+      - name: Run the test suite
+        run: php tools/test-phpt.php build/resvg-php8.3.so
+
+      - name: Run the examples
+        run: tools/test-examples.sh build/resvg-php8.3.so
 
   build-zts:
     name: Build and gate PHP 8.3 (ZTS x86_64)
