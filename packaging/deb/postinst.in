@@ -1,0 +1,10 @@
+#!/bin/sh
+# Enable the module for every installed SAPI of this PHP version; phpenmod
+# only creates links where the API's extension dir actually holds resvg.so.
+set -e
+
+if [ "$1" = "configure" ] && command -v phpenmod >/dev/null 2>&1; then
+	phpenmod -v @PHPV@ -s ALL resvg
+fi
+
+#DEBHELPER#
