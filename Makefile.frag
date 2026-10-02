@@ -8,5 +8,10 @@
 $(RESVG_ARCHIVE): $(RESVG_NATIVE_DIR)/Cargo.toml $(RESVG_NATIVE_DIR)/Cargo.lock $(wildcard $(RESVG_NATIVE_DIR)/src/*.rs)
 	cd $(RESVG_NATIVE_DIR) && $(RESVG_CARGO) build --release $(RESVG_CARGO_FLAGS)
 
-# Force the archive to be built before the extension is linked.
+# Force the archive to exist before the extension is linked — both the in-tree
+# link target and the install copy. tools/build.sh runs cargo itself first, so
+# its make never notices, but a cold `make` (rpmbuild, dpkg build, or a user's
+# plain phpize flow) races the link against the cargo rule without this edge
+# and links a half-built tree.
+resvg.la: $(RESVG_ARCHIVE)
 $(phplibdir)/resvg.la: $(RESVG_ARCHIVE)

@@ -56,13 +56,26 @@ if [ "$PACK_TARBALL" = "1" ]; then
 	echo ">> Packing offline source bundle: $(basename "$OUT")"
 	# Repository files (tracked tree), the verified upstream source, and the
 	# vendored crates — the three inputs an offline build consumes.
-	git -C "$ROOT" archive HEAD | tar -x -C "$STAGE/resvg-php-${EXT_VERSION}-offline"
+	# safe.directory covers containerized runs, where the mounted work tree is
+	# owned by a different uid and git would otherwise refuse it (this path
+	# runs on the host in the release offline-bundle job, so only local
+	# package builds hit that).
+	git -c safe.directory="$ROOT" -C "$ROOT" archive HEAD | tar -x -C "$STAGE/resvg-php-${EXT_VERSION}-offline"
 	# vendor-src/ is gitignored, so it is not in the archive; create its parent
 	# before copying the verified upstream tree into place.
 	mkdir -p "$STAGE/resvg-php-${EXT_VERSION}-offline/vendor-src"
 	cp -a "$ROOT/vendor-src/resvg-0.48.1" "$STAGE/resvg-php-${EXT_VERSION}-offline/vendor-src/resvg-0.48.1"
 	rm -rf "$STAGE/resvg-php-${EXT_VERSION}-offline/vendor-src/resvg-0.48.1/target"
 	cp -a "$ROOT/native/vendor-crates" "$STAGE/resvg-php-${EXT_VERSION}-offline/native/vendor-crates"
+	# native/.cargo/ is gitignored, so `git archive` never carries the redirect
+	# that points cargo at the vendored crates; without it a canonical phpize
+	# build inside the extracted bundle dies with "no matching package named
+	# <crate> found". The extraction proof above exercises build.sh, which
+	# applies --frozen without needing the config, which is why this gap
+	# survived that check.
+	mkdir -p "$STAGE/resvg-php-${EXT_VERSION}-offline/native/.cargo"
+	cp -a "$ROOT/native/.cargo/config.toml" \
+		"$STAGE/resvg-php-${EXT_VERSION}-offline/native/.cargo/config.toml"
 
 	tar -czf "$OUT" -C "$STAGE" "resvg-php-${EXT_VERSION}-offline"
 	echo "   packed: $OUT ($(du -h "$OUT" | cut -f1))"
