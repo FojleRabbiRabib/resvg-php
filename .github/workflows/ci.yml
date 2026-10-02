@@ -124,11 +124,6 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7.0.1
 
-      # The pinned source must exist before the cache restore: rust-cache
-      # treats it as a workspace and errors (restoring nothing) otherwise.
-      - name: Fetch the pinned resvg source
-        run: tools/fetch-resvg.sh
-
       - name: Restore Rust dependency cache
         uses: Swatinem/rust-cache@v2.9.2
         with:
@@ -291,9 +286,6 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v7.0.1
-
-      - name: Fetch the pinned resvg source
-        run: tools/fetch-resvg.sh
 
       - name: Restore Rust dependency cache
         uses: Swatinem/rust-cache@v2.9.2

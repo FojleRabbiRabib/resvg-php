@@ -97,11 +97,8 @@ verify_php_toolchain() {
 	# The Zend API number comes from the installed headers rather than
 	# `php-config --phpapi`, which some builds (the official Docker images among
 	# them) do not implement; the header exists wherever an extension can build.
-	# Both steps tolerate failure so the empty-value check below reports the ABI
-	# mismatch itself — an unguarded failure would abort before the message.
-	php_inc_dir="$("$PHP_CONFIG_BIN_PATH" --include-dir 2>/dev/null || true)"
 	config_api="$(awk '$1 == "#define" && $2 == "ZEND_MODULE_API_NO" { print $3; exit }' \
-		"$php_inc_dir/Zend/zend_modules.h" 2>/dev/null || true)"
+		"$("$PHP_CONFIG_BIN_PATH" --include-dir)/Zend/zend_modules.h" 2>/dev/null)"
 	cli_api="$("$PHP_BIN_PATH" -i | awk -F'=> ' '/^PHP API / {value=$2} END {print value}')"
 	phpize_api="$("$PHPIZE_BIN_PATH" --version | awk -F': *' '/Zend Module Api No/ {print $2; exit}')"
 	if [ -z "$config_api" ] || [ "$config_api" != "$cli_api" ] || [ "$config_api" != "$phpize_api" ]; then
