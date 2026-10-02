@@ -117,19 +117,6 @@ foreach ($name in @('native', 'vendor-src')) {
 
 # --- [4/6] phpize -> configure -> nmake (the canonical path) ----------------
 Write-Host ">> [4/6] phpize + configure + nmake (PHP $PhpVersion)"
-
-# PHP's Windows build system (configure.js) requires bison >= 3.0, re2c and
-# sed on PATH even for extension-only builds, where none of them is ever
-# invoked — the shipped headers carry pre-generated parsers. The runner's
-# preinstalled MSYS2 provides all three; appending keeps MSYS tools behind
-# the MSVC toolset for anything name-colliding.
-$msysUsrBin = "$env:SystemDrive\msys64\usr\bin"
-if (Test-Path "$msysUsrBin\bison.exe") {
-	$env:Path = "$env:Path;$msysUsrBin"
-} elseif (-not (Get-Command bison.exe -ErrorAction SilentlyContinue)) {
-	throw 'bison.exe not found; PHP configure requires it (install MSYS2 or provide bison, re2c, and sed on PATH)'
-}
-
 $buildLog = Join-Path $Build "w32-$PhpVersion.log"
 Push-Location $ExtDir
 try {
