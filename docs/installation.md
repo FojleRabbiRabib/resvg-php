@@ -28,7 +28,7 @@ cosign verify-blob --bundle resvg-php8.3-linux-aarch64.so.bundle \
 # on Alpine / musl:
 cosign verify-blob --bundle resvg-php8.3-linux-musl-x86_64.so.bundle \
     resvg-php8.3-linux-musl-x86_64.so
-# on macOS (Apple silicon; x86-64 builds are named ...-darwin-x86_64.so):
+# on macOS (Apple silicon):
 cosign verify-blob --bundle resvg-php8.3-darwin-arm64.so.bundle \
     resvg-php8.3-darwin-arm64.so
 ```

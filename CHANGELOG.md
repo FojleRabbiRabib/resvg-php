@@ -18,7 +18,7 @@ Semantic Versioning.
   musl PIE archives and bare `.so` assets for all three PHP ABIs on both
   x86-64 and aarch64. On fontless Alpine containers, install `ttf-dejavu` or
   supply fonts via `fontFiles` so text renders.
-- macOS (Apple silicon and Intel) as a supported platform: CI builds and gates
+- macOS (Apple silicon) as a supported platform: CI builds and gates
   the extension on macOS runners, and releases carry ad-hoc-signed
   `-darwin-bsdlibc-` PIE archives and bare `.so` assets for all three PHP
   ABIs. The build detects Mach-O and relinks with `ld64` flags and an
