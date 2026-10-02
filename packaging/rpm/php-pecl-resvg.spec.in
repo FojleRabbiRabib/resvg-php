@@ -1,0 +1,84 @@
+# RPM spec for the resvg PHP extension.
+#
+# Copyright 2026 Fojle Rabbi (Rabib)
+# SPDX-License-Identifier: Apache-2.0
+#
+# Built by tools/build-packages.sh, which passes the offline source bundle (the
+# same self-contained tarball the air-gapped builds use) as the single source;
+# Source0 is never fetched. The bundle carries the hash-verified resvg source
+# and every vendored Rust crate, so this build needs no network access at all.
+#
+# Toolchain note: building requires cargo >= 1.85 on PATH (EL8's rust rpm is
+# too old for resvg's edition 2024; install rustup). It is deliberately not a
+# BuildRequires — there is no rpm providing it, and rpmbuild would refuse the
+# build over an unresolvable check instead of the toolchain actually used.
+#
+# Naming follows the distro PHP-extension convention: php-pecl-"name", the
+# module in the distro extension dir, and a snippet in the distro ini dir
+# enabling it. The target PHP API is asserted through the standard php(api) /
+# php(zend-abi) provides so the package cannot install into an ABI it was not
+# built for.
+
+%bcond_with tests
+
+# No debuginfo/debugsource subpackages: they would triple the release asset
+# count for a prebuilt extension nobody debugs from the rpm, and the module is
+# shipped stripped like the other prebuilts.
+%global debug_package %{nil}
+
+Name:           php-pecl-resvg
+Version:        @VERSION@
+Release:        1%{?dist}
+Summary:        SVG rasterization for PHP on a vendored resvg core
+
+License:        Apache-2.0
+URL:            https://github.com/FojleRabbiRabib/resvg-php
+Source0:        resvg-php-%{version}-offline.tar.gz
+
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
+BuildRequires:  make
+BuildRequires:  php-devel
+
+# The ABI macros from php-devel expand with the pointer-size suffix that
+# matches Remi's php-common provides exactly: php(zend-abi) = 20230831-64 on
+# EL8 x86_64 (both sides verified empirically), so a bare macro comparison
+# resolves.
+Requires:       php(zend-abi) = %{php_zend_api}
+Requires:       php(api) = %{php_core_api}
+
+Provides:       php-%{name} = %{version}-%{release}
+Provides:       php-%{name}%{?_isa} = %{version}-%{release}
+Provides:       php-pecl(resvg) = %{version}-%{release}
+
+%description
+resvg renders SVG to PNG from PHP in-process, using a vendored build of the
+resvg renderer statically linked into the extension. Output is byte-identical
+to the upstream resvg command-line tool built from the same source.
+
+%prep
+%setup -q -n resvg-php-%{version}-offline
+
+%build
+# The bundle ships every crate, so cargo resolves offline; phpize then builds
+# the extension exactly as a source install would.
+phpize
+%configure --enable-resvg --with-php-config=%{_bindir}/php-config
+%make_build
+
+%install
+make install INSTALL_ROOT=%{buildroot}
+# The module ships enabled: the ini the distro's PHP scans is created here, in
+# the same shape php-pecl-* packages use.
+install -D -m 644 /dev/stdin %{buildroot}%{php_inidir}/40-resvg.ini <<'EOF'
+; Enable the resvg extension module
+extension=resvg.so
+EOF
+
+%files
+%{php_extdir}/resvg.so
+%{php_inidir}/40-resvg.ini
+
+%changelog
+* Fri Oct 02 2026 Fojle Rabbi (Rabib) - @VERSION@-1
+- Package the resvg PHP extension

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Disable on removal so no SAPI keeps loading a module that is going away;
+# phpenmod/phpdismod only touch versions of this package's PHP API.
+set -e
+
+if [ "$1" = "remove" ] && command -v phpdismod >/dev/null 2>&1; then
+	phpdismod -v @PHPV@ -s ALL resvg || true
+fi
+
+#DEBHELPER#

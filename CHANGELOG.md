@@ -22,6 +22,13 @@ Semantic Versioning.
 
 ### Added
 
+- Distro packages: each release now carries `php-pecl-resvg` RPMs (EL8+ with
+  Remi PHP) and `php8.N-resvg` debs (Ubuntu 24.04, one per PHP API), built from
+  the offline source bundle so the builds need no network access. Both install
+  the module enabled and are gated against the upstream resvg oracle after
+  installation, and the packaged `.so` passes the same ELF gates as the
+  prebuilts — export isolation, dependency allowlist, hardening flags, and the
+  glibc floor.
 - Windows x64 (MSVC, non-thread-safe) as a supported platform: CI builds and
   gates all three PHP ABIs on Windows runners with the MSVC toolchain, and
   releases carry PIE archives (`php_resvg-<version>-8.N-nts-vs<NN>-x86_64.zip`
