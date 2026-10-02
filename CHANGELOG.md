@@ -6,29 +6,24 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Offline / air-gapped source builds: `tools/vendor-offline.sh` vendors every
+  Rust crate into `native/vendor-crates` and proves resolution with a frozen
+  cargo build; `OFFLINE=1 tools/build.sh` and
+  `./configure --enable-resvg --enable-resvg-offline` build with zero network
+  access, and each release now carries a self-contained offline source bundle
+  (`resvg-php-<version>-offline.tar.gz`) that is extracted and built as part
+  of the release workflow itself.
+
 ### Changed
 
-- Linux glibc prebuilts now build on AlmaLinux 8, lowering the required glibc
-  from 2.35 to **2.28**. They load on RHEL, Alma, and Rocky 8, Debian 10+,
-  Ubuntu 20.04+, and Amazon Linux 2023, where the previous artifacts refused
-  to start. The imported-symbol ceiling is a release gate, and each
-  provenance record now names the measured floor.
 - Alpine (musl) builds run the Alpine toolchain through an explicit docker
   step instead of a job-level container, which GitHub does not support with
   node-based actions on arm64 runners.
 - Prebuilt macOS assets target Apple silicon; Intel Macs install through
   PIE's source-build fallback, because upstream publishes no PHP 8.3/8.4
   bottles for the last Intel runner image.
-
-### Added
-
-- Offline / air-gapped source builds: `tools/vendor-offline.sh` vendors every
-  Rust crate into `native/vendor-crates` and proves resolution with a frozen
-  cargo build; with that directory present, `./configure --enable-resvg` and
-  `tools/build.sh` switch cargo to `--frozen` on their own and build with zero
-  network access, and each release now carries a self-contained offline source
-  bundle (`resvg-php-<version>-offline.tar.gz`) that is extracted and built as
-  part of the release workflow itself.
 
 ## [0.2.0] - 2026-10-01
 

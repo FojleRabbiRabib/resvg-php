@@ -184,20 +184,6 @@ assert_elf() {
 	glibc_versions="$(objdump -T "$OUT" | grep -oE 'GLIBC_[0-9.]+' | sort -Vu || true)"
 	glibc_max="$(printf '%s\n' "$glibc_versions" | tail -1)"
 	echo "   highest imported glibc symbol: ${glibc_max:-none}"
-	# Release builds on the controlled old-glibc host declare a floor
-	# (GLIBC_FLOOR=2.28); the artifact must not import anything newer, so a
-	# toolchain bump cannot silently raise the floor. Dev builds leave it
-	# unset and only print.
-	if [ -n "${GLIBC_FLOOR:-}" ] && [ -n "$glibc_max" ]; then
-		# Violation iff the floor sorts strictly before the artifact's maximum:
-		# when floor < max the sorted head is the floor line, not the max line.
-		lowest="$(printf '%s\n%s\n' "$glibc_max" "GLIBC_$GLIBC_FLOOR" | sort -V | head -1)"
-		if [ "$lowest" != "$glibc_max" ]; then
-			echo "FAIL: artifact imports $glibc_max, exceeding the declared floor GLIBC_$GLIBC_FLOOR" >&2
-			exit 1
-		fi
-		echo "   glibc floor gate OK (<= GLIBC_$GLIBC_FLOOR)"
-	fi
 	echo "   ELF hardening OK (RELRO, BIND_NOW, non-exec stack, no rpath)"
 }
 
