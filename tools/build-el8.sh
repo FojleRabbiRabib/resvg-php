@@ -38,7 +38,11 @@ fi
 # native/target and the fidelity oracle under vendor-src — so clear both
 # rather than failing with an opaque "GLIBC_2.x not found". Build scripts and
 # `resvg --version` are side-effect-free probes.
-probe="$(find native/target/release/build -name build-script-build -type f 2>/dev/null | head -1)"
+# -print -quit stops at the first match, so there is no pipe for find to die
+# of SIGPIPE on, and the `|| true` covers a fresh checkout where the directory
+# does not exist: `find` exits non-zero there, which `set -o pipefail` + `set -e`
+# would otherwise turn into a silent abort.
+probe="$(find native/target/release/build -name build-script-build -type f -print -quit 2>/dev/null || true)"
 stale=0
 if [ -n "$probe" ] && ! "$probe" >/dev/null 2>&1; then
 	stale=1
@@ -52,6 +56,15 @@ if [ "$stale" = "1" ]; then
 	rm -rf native/target vendor-src/resvg-0.48.1/target
 fi
 
-tools/build.sh "$phpv"
-php "tools/test-phpt.php" "build/resvg-php$phpv.so"
-tools/test-examples.sh "build/resvg-php$phpv.so"
+# release-build.sh drives its own build and fidelity gate, so callers that
+# package immediately after this script set RESVG_EL8_SKIP_TESTS=1: the
+# bootstrap build then skips the gate and the local battery, and the artifact
+# that ships is gated exactly once. The default stays on so a bare invocation
+# tests what it just built.
+if [ "${RESVG_EL8_SKIP_TESTS:-0}" = "1" ]; then
+	SKIP_GATE=1 tools/build.sh "$phpv"
+else
+	tools/build.sh "$phpv"
+	php "tools/test-phpt.php" "build/resvg-php$phpv.so"
+	tools/test-examples.sh "build/resvg-php$phpv.so"
+fi
