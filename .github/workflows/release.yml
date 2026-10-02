@@ -209,6 +209,14 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7.0.1
 
+      - name: Provision bison, re2c, and sed via MSYS2
+        uses: msys2/setup-msys2@v2.33.0
+        with:
+          msystem: MSYS
+          update: false
+          release: false
+          install: bison re2c
+
       - name: Activate the MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
