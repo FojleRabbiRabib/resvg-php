@@ -199,6 +199,11 @@ Write-Host '   PE OK (single export, pinned dependencies, ASLR + DEP)'
 
 # --- [6/6] the fidelity gate and the local battery --------------------------
 Write-Host '>> [6/6] fidelity gate, PHPT, examples'
+# The gate's cargo build for the oracle runs under git-bash, which prepends
+# /usr/bin to PATH — where GNU coreutils' `link` shadows MSVC's link.exe.
+# Pin the linker by absolute path so PATH order is irrelevant.
+$msvcLink = Join-Path $env:VCToolsInstallDir 'bin\Hostx64\x64\link.exe'
+if (Test-Path $msvcLink) { $env:RUSTC_LINKER = $msvcLink }
 $env:PHP_VERSION = $PhpVersion
 bash "$Root/tools/test-fidelity.sh" $Out
 Assert-LastExit 'fidelity gate'
