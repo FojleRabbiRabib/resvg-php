@@ -125,13 +125,13 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          docker run --rm -e GIT_REV="$GITHUB_SHA" -v "$PWD":/src -w /src "php:${{ matrix.php }}-alpine" sh -c '
+          docker run --rm -e GIT_REV="$GITHUB_SHA" -e RELEASE_TAG="$RELEASE_TAG" -v "$PWD":/src -w /src "php:${{ matrix.php }}-alpine" sh -c '
             set -eu
             apk add --no-cache bash gcc make musl-dev binutils autoconf curl git ca-certificates zip ttf-dejavu
             curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98.1 >/dev/null 2>&1
             export PATH="$HOME/.cargo/bin:$PATH"
             tools/fetch-resvg.sh >/dev/null
-            ABIS=${{ matrix.php }} RELEASE_TAG="$RELEASE_TAG" tools/release-build.sh
+            ABIS=${{ matrix.php }} tools/release-build.sh
           '
 
       - name: Upload release assets
