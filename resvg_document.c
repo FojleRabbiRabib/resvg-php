@@ -320,7 +320,7 @@ PHP_METHOD(Resvg_Tree, boundingBox)
 
 PHP_METHOD(Resvg_Tree, hasNode)
 {
-	zend_string *id;
+	zend_string *id = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 	Z_PARAM_STR(id)
@@ -401,7 +401,7 @@ PHP_METHOD(Resvg_Tree, render)
 
 PHP_METHOD(Resvg_Tree, renderNode)
 {
-	zend_string *id;
+	zend_string *id = NULL;
 	HashTable *options = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 2)

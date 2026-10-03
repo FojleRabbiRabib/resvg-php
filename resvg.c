@@ -19,6 +19,15 @@
 ZEND_TSRMLS_CACHE_DEFINE()
 #endif
 
+/* MSVC at /W4 flags two patterns Zend's own macros mandate: the GINIT
+ * function's parameter shares the file-scope globals name (C4459), and the
+ * ini entries take the address of dllimport OnUpdateLong (C4232). Silence
+ * those two inside this macro region only; every other warning stays fatal. */
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4459 4232)
+#endif
+
 ZEND_DECLARE_MODULE_GLOBALS(resvg)
 
 static PHP_GINIT_FUNCTION(resvg)
@@ -36,6 +45,10 @@ STD_PHP_INI_ENTRY(RESVG_INI_MAX_INPUT_SIZE, "16777216", PHP_INI_ALL, OnUpdateLon
 STD_PHP_INI_ENTRY(RESVG_INI_MAX_RENDER_PIXELS, "67108864", PHP_INI_ALL, OnUpdateLong,
 				  max_render_pixels, zend_resvg_globals, resvg_globals)
 PHP_INI_END()
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 PHP_MINIT_FUNCTION(resvg)
 {

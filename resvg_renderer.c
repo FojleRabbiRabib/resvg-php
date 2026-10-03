@@ -118,7 +118,7 @@ PHP_METHOD(Resvg_Renderer, __construct)
 
 PHP_METHOD(Resvg_Renderer, parse)
 {
-	zend_string *svg;
+	zend_string *svg = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 	Z_PARAM_STR(svg)
@@ -146,7 +146,7 @@ static zend_string *resvg_read_file_or_throw(zend_string *path)
 
 PHP_METHOD(Resvg_Renderer, parseFile)
 {
-	zend_string *path;
+	zend_string *path = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 	Z_PARAM_STR(path)
@@ -170,7 +170,7 @@ PHP_METHOD(Resvg_Renderer, parseFile)
 
 PHP_METHOD(Resvg_Renderer, render)
 {
-	zend_string *svg;
+	zend_string *svg = NULL;
 	HashTable *options = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -195,7 +195,7 @@ PHP_METHOD(Resvg_Renderer, render)
 
 PHP_METHOD(Resvg_Renderer, renderFile)
 {
-	zend_string *path;
+	zend_string *path = NULL;
 	HashTable *options = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -228,7 +228,7 @@ PHP_METHOD(Resvg_Renderer, renderFile)
 
 PHP_METHOD(Resvg_Renderer, measure)
 {
-	zend_string *svg;
+	zend_string *svg = NULL;
 	HashTable *options = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -253,7 +253,7 @@ PHP_METHOD(Resvg_Renderer, measure)
 
 PHP_METHOD(Resvg_Renderer, measureFile)
 {
-	zend_string *path;
+	zend_string *path = NULL;
 	HashTable *options = NULL;
 
 	ZEND_PARSE_PARAMETERS_START(1, 2)
