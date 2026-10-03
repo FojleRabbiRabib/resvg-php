@@ -168,7 +168,14 @@ $dependentText = & dumpbin /DEPENDENTS $Out | Out-String
 $dependents = ($dependentText | Select-String '(?m)^\s+(\S+\.dll)' -AllMatches).Matches |
 	ForEach-Object { $_.Groups[1].Value.ToLowerInvariant() } | Sort-Object -Unique
 Write-Host "   linked libraries: $($dependents -join ' ')"
-$allowed = @('advapi32.dll', 'bcrypt.dll', 'kernel32.dll', 'msvcrt.dll',
+# Deny-by-default allowlist of system libraries. The api-ms-win-* entries are
+# Microsoft's api-set forwarders for the UCRT and core synchronization — the
+# layout the VS18 toolchain actually links — with the classic UCRT names kept
+# for older toolchains.
+$allowed = @('advapi32.dll', 'api-ms-win-core-synch-l1-2-0.dll',
+	'api-ms-win-crt-heap-l1-1-0.dll', 'api-ms-win-crt-math-l1-1-0.dll',
+	'api-ms-win-crt-runtime-l1-1-0.dll', 'api-ms-win-crt-string-l1-1-0.dll',
+	'bcrypt.dll', 'bcryptprimitives.dll', 'kernel32.dll', 'msvcrt.dll',
 	'ntdll.dll', 'php8.dll', 'ucrtbase.dll', 'userenv.dll',
 	'vcruntime140.dll', 'vcruntime140_1.dll', 'ws2_32.dll')
 $unexpected = @($dependents | Where-Object { $allowed -notcontains $_ })
