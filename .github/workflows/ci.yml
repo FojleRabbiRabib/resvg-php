@@ -296,6 +296,17 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7.0.1
 
+      # PHP's Windows configure requires bison, re2c, and sed on PATH even
+      # for extension-only builds; MSYS2 provides all three at the location
+      # tools/build-windows.ps1 checks.
+      - name: Provision bison, re2c, and sed via MSYS2
+        uses: msys2/setup-msys2@v2.33.0
+        with:
+          msystem: MSYS
+          update: false
+          release: false
+          install: bison re2c
+
       - name: Activate the MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
