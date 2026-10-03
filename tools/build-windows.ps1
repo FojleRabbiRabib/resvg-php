@@ -181,10 +181,17 @@ $allowed = @('advapi32.dll', 'api-ms-win-core-synch-l1-2-0.dll',
 $unexpected = @($dependents | Where-Object { $allowed -notcontains $_ })
 if ($unexpected.Count -ne 0) { throw "unexpected dynamic dependencies: $($unexpected -join ', ')" }
 
-# The load configuration carries ASLR and DEP as "… Yes" flags.
+# The load configuration carries ASLR and DEP; older dumpbin spells them as
+# "… Yes" flag lines, newer toolchains as raw DllCharacteristics names.
 $headerText = & dumpbin /HEADERS $Out | Out-String
-if ($headerText -notmatch 'Dynamic base\s+Yes') { throw 'DYNAMICBASE (ASLR) is absent' }
-if ($headerText -notmatch 'NX compatible\s+Yes') { throw 'NXCOMPAT (DEP) is absent' }
+$aslrOk = $headerText -match 'Dynamic base\s+Yes' -or $headerText -match 'DYNAMIC_BASE'
+$depOk = $headerText -match 'NX compatible\s+Yes' -or $headerText -match 'NX_COMPAT'
+if (-not $aslrOk -or -not $depOk) {
+	$headerText -split "`r?`n" | Where-Object { $_ -match 'DllChar|Dynamic base|NX compat' } |
+		ForEach-Object { Write-Host "   | $_" }
+}
+if (-not $aslrOk) { throw 'DYNAMICBASE (ASLR) is absent' }
+if (-not $depOk) { throw 'NXCOMPAT (DEP) is absent' }
 Write-Host '   PE OK (single export, pinned dependencies, ASLR + DEP)'
 
 # --- [6/6] the fidelity gate and the local battery --------------------------
