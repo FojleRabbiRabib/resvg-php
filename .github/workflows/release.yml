@@ -81,8 +81,6 @@ jobs:
   build-musl:
     name: Build PHP ${{ matrix.php }} musl (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
-    container:
-      image: php:${{ matrix.php }}-alpine
     strategy:
       fail-fast: false
       matrix:
