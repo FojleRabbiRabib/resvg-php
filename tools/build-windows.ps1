@@ -154,7 +154,9 @@ Write-Host "   built: $Out ($([math]::Round((Get-Item $Out).Length / 1MB, 1)) MB
 Write-Host '>> [5/6] validate exports, dependencies, and hardening'
 $exportText = & dumpbin /EXPORTS $Out | Out-String
 Assert-LastExit 'dumpbin /EXPORTS'
-$exported = ($exportText | Select-String '(?m)^\s+\d+\s+[0-9A-F]+\s+(\S+)' -AllMatches).Matches |
+# dumpbin data lines are "ordinal hint RVA name" — all three columns precede
+# the export name, which is the capture group.
+$exported = ($exportText | Select-String '(?m)^\s+\d+\s+[0-9A-F]+\s+[0-9A-F]+\s+(\S+)' -AllMatches).Matches |
 	ForEach-Object { $_.Groups[1].Value }
 Write-Host "   dynamic exports: $($exported -join ' ')"
 $extra = @($exported | Where-Object { $_ -ne 'get_module' })
