@@ -199,11 +199,23 @@ Write-Host '   PE OK (single export, pinned dependencies, ASLR + DEP)'
 
 # --- [6/6] the fidelity gate and the local battery --------------------------
 Write-Host '>> [6/6] fidelity gate, PHPT, examples'
-# The gate's cargo build for the oracle runs under git-bash, which prepends
-# /usr/bin to PATH — where GNU coreutils' `link` shadows MSVC's link.exe.
-# Pin the linker by absolute path so PATH order is irrelevant.
-$msvcLink = Join-Path $env:VCToolsInstallDir 'bin\Hostx64\x64\link.exe'
-if (Test-Path $msvcLink) { $env:RUSTC_LINKER = $msvcLink }
+# The gate builds the oracle CLIs via cargo when missing; under git-bash that
+# cargo run resolves link.exe to GNU coreutils' link in /usr/bin, which
+# shadows MSVC's. Build both oracles here, where the MSVC tools lead PATH,
+# so the gate finds them prebuilt.
+$vendored = Join-Path $Root 'vendor-src\resvg-0.48.1'
+if (-not (Test-Path (Join-Path $vendored 'target\release\resvg.exe')) -or
+		-not (Test-Path (Join-Path $vendored 'target\release\usvg.exe'))) {
+	Push-Location $vendored
+	try {
+		& cargo build --release --locked -p resvg --bin resvg
+		Assert-LastExit 'oracle resvg build'
+		& cargo build --release --locked -p usvg --bin usvg
+		Assert-LastExit 'oracle usvg build'
+	} finally {
+		Pop-Location
+	}
+}
 $env:PHP_VERSION = $PhpVersion
 bash "$Root/tools/test-fidelity.sh" $Out
 Assert-LastExit 'fidelity gate'
