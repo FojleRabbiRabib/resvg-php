@@ -334,10 +334,10 @@ PHP_METHOD(Resvg_Renderer, fonts)
 			zend_string *family = zend_string_init(cursor, (size_t)(family_tab - cursor), 0);
 			const char *path = family_tab + 1;
 			size_t path_len = (size_t)(status_tab - path);
-			const char *status = status_tab + 1;
-			size_t status_len = row_len - (size_t)(status - cursor);
+			const char *row_status = status_tab + 1;
+			size_t row_status_len = row_len - (size_t)(row_status - cursor);
 
-			if (status_len == 6 && memcmp(status, "failed", 6) == 0) {
+			if (row_status_len == 6 && memcmp(row_status, "failed", 6) == 0) {
 				/* Warn-and-continue, matching upstream's font load diagnostics;
 				 * the failed path loaded no face, so it is not in the map. */
 				php_error_docref(NULL, E_USER_WARNING, "Failed to load font '%.*s'",
