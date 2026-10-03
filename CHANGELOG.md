@@ -6,6 +6,8 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-03
+
 ### Changed
 
 - Linux glibc prebuilts now build on AlmaLinux 8, lowering the required glibc

@@ -121,8 +121,8 @@ verified resvg source, and every vendored crate; extract it and build with
 `OFFLINE=1`:
 
 ```sh
-tar xzf resvg-php-0.2.0-offline.tar.gz
-cd resvg-php-0.2.0-offline
+tar xzf resvg-php-0.3.0-offline.tar.gz
+cd resvg-php-0.3.0-offline
 OFFLINE=1 tools/build.sh 8.3
 ```
 

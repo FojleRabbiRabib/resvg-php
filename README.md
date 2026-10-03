@@ -78,8 +78,8 @@ so the module loads wherever Remi's PHP does) and `php8.N-resvg` debs (Ubuntu
 are gated against the upstream resvg oracle before they are published:
 
 ```sh
-dnf install ./php-pecl-resvg-0.2.0-1.el8.x86_64.rpm
-apt install ./php8.3-resvg_0.2.0-1~noble_amd64.deb
+dnf install ./php-pecl-resvg-0.3.0-1.el8.x86_64.rpm
+apt install ./php8.3-resvg_0.3.0-1~noble_amd64.deb
 ```
 
 ### From source
@@ -236,7 +236,7 @@ See [`docs/security.md`](docs/security.md) for the full threat model.
 ### Version
 
 ```php
-Resvg\Renderer::version();   // "0.2.0+resvg.0.48.1"
+Resvg\Renderer::version();   // "0.3.0+resvg.0.48.1"
 ```
 
 ## Options reference
