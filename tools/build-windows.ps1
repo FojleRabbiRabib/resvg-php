@@ -217,6 +217,16 @@ if (-not (Test-Path (Join-Path $vendored 'target\release\resvg.exe')) -or
 	}
 }
 $env:PHP_VERSION = $PhpVersion
+# Pin the interpreter the gate uses: the dev-pack runtime that shares the
+# DLL's ABI, not whatever `php` git-bash happens to resolve first.
+$env:PHP_BIN = (Get-Command php -CommandType Application | Select-Object -First 1).Source
+Write-Host "   php: $(& $env:PHP_BIN -v | Select-Object -First 1)"
+$smoke = & $env:PHP_BIN -n -d "extension=$Out" -m 2>&1
+$smoke | Where-Object { $_ -match 'resvg|Warning|Failed|unable' } |
+	ForEach-Object { Write-Host "   smoke: $_" }
+if ($LASTEXITCODE -ne 0 -or -not ($smoke | Where-Object { $_ -match '^resvg$' })) {
+	throw 'the built DLL did not load under the dev-pack runtime'
+}
 bash "$Root/tools/test-fidelity.sh" $Out
 Assert-LastExit 'fidelity gate'
 php "$Root/tools/test-phpt.php" $Out
