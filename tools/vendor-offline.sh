@@ -49,6 +49,7 @@ if [ "$PACK_TARBALL" = "1" ]; then
 	EXT_VERSION="$(awk -F'"' '/#define PHP_RESVG_VERSION/ {print $2}' "$ROOT/php_resvg.h")"
 	[ -n "$EXT_VERSION" ] || { echo "FAIL: could not determine PHP_RESVG_VERSION" >&2; exit 1; }
 	OUT="${OUT_DIR:-$ROOT/build}/resvg-php-${EXT_VERSION}-offline.tar.gz"
+	mkdir -p "$(dirname "$OUT")"
 	STAGE="$(mktemp -d)"
 	trap 'rm -rf "$STAGE"' EXIT
 	mkdir -p "$STAGE/resvg-php-${EXT_VERSION}-offline"
