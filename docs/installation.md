@@ -50,13 +50,16 @@ macOS installs from the `-darwin-bsdlibc-` archives automatically. Prebuilt
 macOS assets target Apple silicon; on Intel Macs, PIE's source-build fallback
 works (Homebrew PHP plus Rust 1.85+).
 
-Windows builds are x64 MSVC, non-thread-safe, and per-PHP-toolset: PHP 8.3's
-official Windows builds use VS16 (Visual Studio 2019) and 8.4+/8.5 use VS17
-(2022). PIE reads that segment from the target PHP and resolves the matching
-archive (`php_resvg-<version>-8.3-nts-vs16-x86_64.zip`, and so on); for a manual
+Windows builds are x64 MSVC, non-thread-safe, and per-PHP-toolset: PHP 8.4
+and 8.5's official Windows builds use VS17 (Visual Studio 2022), and those
+are the ABIs Windows prebuilts ship for. PIE reads that segment from the
+target PHP and resolves the matching archive
+(`php_resvg-<version>-8.4-nts-vs17-x86_64.zip`, and so on); for a manual
 install, take the DLL out of the archive whose compiler segment matches
-`php -i`'s `PHP Extension Build`. The extension contains no MSVC runtime beyond
-the one PHP itself links (`vcruntime140.dll`).
+`php -i`'s `PHP Extension Build`. On PHP 8.3 — whose official Windows builds
+use the older VS16 toolchain — PIE falls back to a source build, which needs
+the matching Visual Studio toolchain and Rust. The extension contains no MSVC
+runtime beyond the one PHP itself links (`vcruntime140.dll`).
 
 A `.so` is ABI-bound to its PHP build's thread safety: an NTS extension will not
 load under a thread-safe PHP, and vice versa. PIE selects the matching archive

@@ -31,7 +31,7 @@ deterministically — the same input produces the same bytes on every machine.
 
 - PHP 8.3, 8.4, or 8.5, non-thread-safe (NTS) or thread-safe (ZTS) builds
 - Linux x86-64 or aarch64 with glibc 2.28+ or musl; macOS on Apple silicon;
-  Windows x64 (MSVC, NTS)
+  Windows x64 (MSVC, NTS, PHP 8.4+)
 - For building from source: Rust 1.85 or newer, and a PHP development toolchain
 
 ZTS builds are validated: the extension is built and gated under the thread-safe
