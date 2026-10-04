@@ -223,9 +223,10 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-          # PHP's official Windows builds ship with the VS17 toolset; PHP
-          # refuses modules linked with a newer toolset than its own core.
-          vsversion: 17.0
+        # windows-2022 ships only VS2022, whose toolset matches the one the
+        # official 8.4/8.5 Windows cores are built with; PHP refuses modules
+        # linked by a newer linker than its core, so the runner choice is the
+        # toolset choice.
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@1.98.1
