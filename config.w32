@@ -97,9 +97,10 @@ if (PHP_RESVG != "no") {
 
 	// PHP's Windows toolchain compiles at /W3 without warnings-as-errors; this
 	// extension holds itself to -Wall -Wextra -Werror everywhere else, so the
-	// warning bar travels with it here too. The three /wd suppressions cover
-	// warning classes emitted by PHP's own headers (nameless unions, integer
-	// narrowing, macro redefinition); everything else still fails the build.
+	// warning bar travels with it here too. The /wd suppressions cover warning
+	// classes emitted by PHP's own headers (nameless unions, integer
+	// narrowing, macro redefinition, constant conditionals); everything else
+	// still fails the build.
 	EXTENSION("resvg", "resvg.c resvg_options.c resvg_exception.c resvg_renderer.c resvg_document.c",
-		PHP_RESVG_SHARED, "/W4 /WX /wd4201 /wd4244 /wd4005 /I\"" + configure_module_dirname + "\\native\\include\"");
+		PHP_RESVG_SHARED, "/W4 /WX /wd4201 /wd4244 /wd4005 /wd4127 /I\"" + configure_module_dirname + "\\native\\include\"");
 }
